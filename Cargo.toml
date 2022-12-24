@@ -1,6 +1,6 @@
 [package]
 name = "scope-tui"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = [ "alemi <me@alemi.dev>" ]
 description = "A simple audio visualization tool for the terminal built with tui-rs and libpulse-simple-binding, inspired from cava"
