@@ -1,12 +1,15 @@
+mod parser;
+mod app;
+
 use std::{io, time::Duration};
 use tui::{
 	backend::CrosstermBackend,
-	widgets::{Block, Chart, Axis, GraphType, Dataset, BorderType},
+	widgets::{Block, Chart, Axis, Dataset, GraphType},
 	// layout::{Layout, Constraint, Direction},
-	Terminal, text::Span, style::{Style, Color}, symbols
+	Terminal, text::Span, style::{Style, Color, Modifier}, symbols
 };
 use crossterm::{
-	event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+	event::{self, DisableMouseCapture, Event, KeyCode, KeyModifiers},
 	execute,
 	terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -17,16 +20,19 @@ use libpulse_binding::sample::{Spec, Format};
 
 use clap::Parser;
 
+use parser::{SampleParser, Signed16PCM};
+use app::AppConfig;
+
 /// A simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-	/// Size of audio buffer, and width of scope
-	width: u32,
-	
 	/// Audio device to attach to
-	#[arg(short, long)]
 	device: Option<String>,
+
+	/// Size of audio buffer, and width of scope
+	#[arg(short, long, default_value_t = 8192)]
+	width: u32,
 
 	/// Max value on Amplitude scale
 	#[arg(short, long, default_value_t = 20000)]
@@ -49,70 +55,27 @@ struct Args {
 	vectorscope: bool,
 }
 
-trait SampleParser {
-	fn oscilloscope(data: &mut [u8]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>);
-	fn vectorscope (data: &mut [u8]) -> Vec<(f64, f64)>;
-}
-
-struct Signed16PCM {}
-
-impl SampleParser for Signed16PCM {
-	fn oscilloscope(data: &mut [u8]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) { 
-		let mut left = Vec::new(); // TODO does left really come first?
-		let mut right = Vec::new();
-		let mut buf : i16 = 0;
-		let mut count : f64 = 0.0;
-		let mut flip = false;
-		let mut side = false;
-		for sample in data {
-			if flip {
-				buf |= (*sample as i16) << 8;
-				if side {
-					left.push((count, buf as f64));
-				} else {
-					right.push((count, buf as f64));
-					count += 1.0;
-				}
-				buf = 0;
-				side = !side;
-			} else {
-				buf |= *sample as i16;
-			}
-			flip = !flip;
-		}
-		(left, right)
-	}
-
-	fn vectorscope(data: &mut [u8]) -> Vec<(f64, f64)> { 
-		let mut out = Vec::new(); // TODO does left really come first?
-		let mut buf : i16 = 0;
-		let mut flip = false;
-		let mut point = None;
-		for sample in data {
-			if flip {
-				buf |= (*sample as i16) << 8;
-				if point.is_none() {
-					point = Some(buf as f64);
-				} else {
-					out.push((point.unwrap(), buf as f64));
-					point = None;
-				}
-				buf = 0;
-			} else {
-				buf |= *sample as i16;
-			}
-			flip = !flip;
-		}
-		out
-	}
-}
-
 fn poll_event() -> Result<Option<Event>, std::io::Error> {
 	if event::poll(Duration::from_millis(0))? {
 		Ok(Some(event::read()?))
 	} else {
 		Ok(None)
 	}
+}
+
+fn data_set<'a>(
+		name: &'a str,
+		data: &'a Vec<(f64, f64)>,
+		marker_type: symbols::Marker,
+		graph_type: GraphType,
+		axis_color: Color
+) -> Dataset<'a> {
+	Dataset::default()
+		.name(name)
+		.marker(marker_type)
+		.graph_type(graph_type)
+		.style(Style::default().fg(axis_color))
+		.data(&data)
 }
 
 
@@ -132,8 +95,6 @@ fn main() -> Result<(), io::Error> {
 		None => None,
 	};
 
-	let marker_type = if args.no_braille { symbols::Marker::Dot } else { symbols::Marker::Braille };
-	let graph_type  = if args.scatter    { GraphType::Scatter   } else { GraphType::Line          };
 
 	let s = Simple::new(
 		None,                // Use the default server
@@ -153,128 +114,79 @@ fn main() -> Result<(), io::Error> {
 	// setup terminal
 	enable_raw_mode()?;
 	let mut stdout = io::stdout();
-	execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+	execute!(stdout, EnterAlternateScreen)?;
 	let backend = CrosstermBackend::new(stdout);
 	let mut terminal = Terminal::new(backend)?;
 	terminal.hide_cursor().unwrap();
 
+	// prepare globals
 	let mut buffer : Vec<u8> = vec![0; args.width as usize];
-	// let mut buffer : [u8; WINDOW] = [0;WINDOW];
-	let y_bounds : [f64; 2];
-	let x_bounds : [f64; 2];
-	let reference_x : Dataset;
-	let reference_y : Dataset;
-
-	let mut ref_data_x = Vec::new();
-	let mut ref_data_y = Vec::new();
+	let mut cfg = AppConfig::from(args);
+	let fmt = Signed16PCM{}; // TODO some way to choose this?
 
 	let mut pause = false;
-
-	if args.vectorscope {
-		x_bounds = [-(args.scale as f64), args.scale as f64];
-		y_bounds = [-(args.scale as f64), args.scale as f64];
-
-		for x in -(args.scale as i64)..(args.scale as i64) {
-			ref_data_x.push((x as f64, 0 as f64));
-			ref_data_y.push((0 as f64, x as f64));
-		}
-	} else {
-		x_bounds = [0.0, args.width as f64 / 4.0];
-		y_bounds = [-(args.scale as f64), args.scale as f64];
-
-		for x in 0..args.width/4 {
-			ref_data_x.push((x as f64, 0 as f64));
-		}
-		for y in -(args.scale as i64)..(args.scale as i64) {
-			ref_data_y.push(((args.width as f64) / 8.0, y as f64));
-		}
-	}
-
-	reference_x = Dataset::default()
-			.name("X")
-			.marker(marker_type)
-			.graph_type(GraphType::Line)
-			.style(Style::default().fg(Color::DarkGray))
-			.data(&ref_data_x);
-	reference_y = Dataset::default()
-			.name("Y")
-			.marker(marker_type)
-			.graph_type(GraphType::Line)
-			.style(Style::default().fg(Color::DarkGray))
-			.data(&ref_data_y);
 
 	loop {
 		s.read(&mut buffer).unwrap();
 
-		let mut datasets = vec![];
-		let (left, right) : (Vec<(f64, f64)>, Vec<(f64, f64)>);
-		let merged : Vec<(f64, f64)>;
-		let labels_x : Vec<Span>;
-		let labels_y : Vec<Span>;
-		let title_x : String;
-		let title_y : String;
-
-		if !args.no_reference {
-			datasets.push(reference_x.clone());
-			datasets.push(reference_y.clone());
-		}
-
-		if args.vectorscope {
-			merged = Signed16PCM::vectorscope(&mut buffer);
-			datasets.push(
-				Dataset::default()
-					.name("V")
-					.marker(marker_type)
-					.graph_type(graph_type)
-					.style(Style::default().fg(Color::Red))
-					.data(&merged)
-			);
-			labels_x = vec![Span::from("-"), Span::from("0"), Span::from("+")];
-			labels_y = vec![Span::from("-"), Span::from("0"), Span::from("+")];
-			title_x = "left".into();
-			title_y = "right".into();
-		} else {
-			(left, right) = Signed16PCM::oscilloscope(&mut buffer);
-			datasets.push(
-				Dataset::default()
-					.name("R")
-					.marker(marker_type)
-					.graph_type(graph_type)
-					.style(Style::default().fg(Color::Yellow))
-					.data(&right)
-			);
-			datasets.push(
-				Dataset::default()
-					.name("L")
-					.marker(marker_type)
-					.graph_type(graph_type)
-					.style(Style::default().fg(Color::Red))
-					.data(&left)
-			);
-			labels_x = vec![Span::from("0"), Span::from(format!("{}", args.width / 4))];
-			labels_y = vec![Span::from("-"), Span::from("0"), Span::from("+")];
-			title_x = "sample".into();
-			title_y = "amplitude".into();
-		}
-
 		if !pause {
+			let mut datasets = vec![];
+			let (left, right);
+			let merged;
+
+			let mut ref_data_x = Vec::new();
+			let mut ref_data_y = Vec::new();
+
+			if cfg.references {
+		
+				if cfg.vectorscope() {
+					for x in -(cfg.scale() as i64)..(cfg.scale() as i64) {
+						ref_data_x.push((x as f64, 0 as f64));
+						ref_data_y.push((0 as f64, x as f64));
+					}
+				} else {
+					for x in 0..cfg.width() {
+						ref_data_x.push((x as f64, 0 as f64));
+					}
+					for y in -(cfg.scale() as i64)..(cfg.scale() as i64) {
+						ref_data_y.push(((cfg.width() as f64) / 2.0, y as f64));
+					}
+				}
+		
+				datasets.push(data_set("X", &ref_data_x, cfg.marker_type, GraphType::Line, cfg.axis_color));
+				datasets.push(data_set("Y", &ref_data_y, cfg.marker_type, GraphType::Line, cfg.axis_color));
+			}
+
+			if cfg.vectorscope() {
+				merged = fmt.vectorscope(&mut buffer);
+				datasets.push(data_set("V", &merged, cfg.marker_type, cfg.graph_type(), cfg.primary_color));
+			} else {
+				(left, right) = fmt.oscilloscope(&mut buffer);
+				datasets.push(data_set("R", &right, cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
+				datasets.push(data_set("L", &left, cfg.marker_type, cfg.graph_type(), cfg.primary_color));
+			}
+
 			terminal.draw(|f| {
 				let size = f.size();
 				let chart = Chart::new(datasets)
-					.block(Block::default()
-						.border_type(BorderType::Rounded)
-						.border_style(Style::default().fg(Color::DarkGray))
-						.title(Span::styled("TUI Oscilloscope  --  <me@alemi.dev>", Style::default().fg(Color::Cyan))))
+					.block(Block::default().title(
+						Span::styled(
+							format!(
+								"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples",
+								if cfg.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
+								if cfg.scatter() { "scatter" } else { "line" },
+								cfg.scale(), cfg.width(),
+							),
+						Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
+					))
 					.x_axis(Axis::default()
-						.title(Span::styled(title_x.as_str(), Style::default().fg(Color::Cyan)))
-						.style(Style::default().fg(Color::DarkGray))
-						.bounds(x_bounds)
-						.labels(labels_x))
+						.title(Span::styled(cfg.name(app::Axis::X), Style::default().fg(Color::Cyan)))
+						.style(Style::default().fg(cfg.axis_color))
+						.bounds(cfg.bounds(app::Axis::X)))
 					.y_axis(Axis::default()
-						.title(Span::styled(title_y.as_str(), Style::default().fg(Color::Cyan)))
-						.style(Style::default().fg(Color::DarkGray))
-						.bounds(y_bounds)
-						.labels(labels_y));
+						.title(Span::styled(cfg.name(app::Axis::Y), Style::default().fg(Color::Cyan)))
+						.style(Style::default().fg(cfg.axis_color))
+						.bounds(cfg.bounds(app::Axis::Y)));
 				f.render_widget(chart, size)
 			})?;
 		}
@@ -284,6 +196,8 @@ fn main() -> Result<(), io::Error> {
 				KeyModifiers::CONTROL => {
 					match key.code {
 						KeyCode::Char('c') => break,
+						KeyCode::Char('+') => cfg.update_scale(100),
+						KeyCode::Char('-') => cfg.update_scale(-100),
 						_ => {},
 					}
 				},
@@ -291,6 +205,10 @@ fn main() -> Result<(), io::Error> {
 					match key.code {
 						KeyCode::Char('q') => break,
 						KeyCode::Char(' ') => pause = !pause,
+						KeyCode::Char('+') => cfg.update_scale(1000),
+						KeyCode::Char('-') => cfg.update_scale(-1000),
+						KeyCode::Char('v') => cfg.set_vectorscope(!cfg.vectorscope()),
+						KeyCode::Char('s') => cfg.set_scatter(!cfg.scatter()),
 						_ => {},
 					}
 				}
