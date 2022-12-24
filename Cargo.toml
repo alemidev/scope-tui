@@ -1,0 +1,13 @@
+[package]
+name = "scope-tui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tui = "0.19"
+crossterm = "0.25"
+libpulse-binding = "2.0"
+libpulse-simple-binding = "2.25"
+clap = { version = "4.0.32", features = ["derive"] }
