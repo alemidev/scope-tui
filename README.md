@@ -31,6 +31,8 @@ Options:
 
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192`
 
+To change audio buffer size, the PulseAudio client must be restarted. Because of this, such option is configurable only at startup.
+
 ## Controls
 * Use `q` or `CTRL+C` to exit
 * Use `<SPACE>` to pause and resume display
