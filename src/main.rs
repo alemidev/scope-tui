@@ -21,7 +21,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-	/// Sample size of buffer, and width of scope
+	/// Size of audio buffer, and width of scope
 	width: u32,
 	
 	/// Audio device to attach to
