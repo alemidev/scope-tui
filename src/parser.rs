@@ -14,6 +14,7 @@ pub trait SampleParser {
 
 pub struct Signed16PCM {}
 
+/// TODO these are kinda inefficient, can they be faster?
 impl SampleParser for Signed16PCM {
 	fn oscilloscope(&self, data: &mut [u8]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) { 
 		let mut left = Vec::new(); // TODO does left really come first?

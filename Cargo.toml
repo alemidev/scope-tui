@@ -3,9 +3,7 @@ name = "scope-tui"
 version = "0.1.1"
 edition = "2021"
 authors = [ "alemi <me@alemi.dev>" ]
-description = """
-A simple audio visualization tool for the terminal built with tui-rs and libpulse-simple-binding, inspired from cava
-"""
+description = "A simple audio visualization tool for the terminal built with tui-rs and libpulse-simple-binding, inspired from cava"
 keywords = ["tui", "terminal", "audio", "visualization", "scope", "dashboard"]
 repository = "https://github.com/alemidev/scope-tui"
 readme = "README.md"

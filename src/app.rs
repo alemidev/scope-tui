@@ -101,8 +101,10 @@ impl AppConfig {
 	}
 
 	pub fn update_scale(&mut self, increment: i32) {
-		self.scale = ((self.scale as i32) + increment) as u32;
-		self.update_values();
+		if increment > 0 || increment.abs() < self.scale as i32 {
+			self.scale = ((self.scale as i32) + increment) as u32;
+			self.update_values();
+		}
 	}
 
 	pub fn set_scatter(&mut self, scatter: bool) {
@@ -111,8 +113,8 @@ impl AppConfig {
 }
 
 
-impl From::<crate::Args> for AppConfig {
-	fn from(args: crate::Args) -> Self {
+impl From::<&crate::Args> for AppConfig {
+	fn from(args: &crate::Args) -> Self {
 		let marker_type = if args.no_braille { symbols::Marker::Dot } else { symbols::Marker::Braille };
 		let graph_type  = if args.scatter    { GraphType::Scatter   } else { GraphType::Line          };
 
@@ -121,8 +123,8 @@ impl From::<crate::Args> for AppConfig {
 			primary_color: Color::Red,
 			secondary_color: Color::Yellow,
 			axis_color: Color::DarkGray,
-			scale: args.scale,
-			width: args.width / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
+			scale: args.range,
+			width: args.buffer / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
 			vectorscope: args.vectorscope,
 			references: !args.no_reference,
 			bounds: ChartBounds::default(),

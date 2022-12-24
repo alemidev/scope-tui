@@ -13,17 +13,17 @@ the first version of `scope-tui` was developed, with very minimal settings given
 
 # Usage
 ```
-$ scope-tui [OPTIONS] <WIDTH>
+$ scope-tui [OPTIONS] [DEVICE]
 
 Arguments:
-  <WIDTH>  Size of audio buffer, and width of scope
+  [DEVICE]  Audio device to attach to
 
 Options:
-  -d, --device <DEVICE>  Audio device to attach to
-  -s, --scale <SCALE>    Max value on Amplitude scale [default: 20000]
+  -b, --buffer <BUFFER>  Size of audio buffer, and width of scope [default: 8192]
+  -r, --range <RANGE>    Max value, positive and negative, on amplitude scale [default: 20000]
       --no-reference     Don't draw reference line
       --no-braille       Don't use braille dots for drawing lines
-      --scatter          Use vintage looking scatter mode
+      --scatter          Use vintage looking scatter mode instead of line mode
       --vectorscope      Combine left and right channels into vectorscope view
   -h, --help             Print help information
   -V, --version          Print version information
@@ -32,6 +32,9 @@ Options:
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192`
 
 ## Controls
-* Use `q` or `CTRL+C` to exit. Not all keypresses are caught, so keep trying... (wip!)
+* Use `q` or `CTRL+C` to exit
 * Use `<SPACE>` to pause and resume display
+* Use `-` and `=` to decrease or increase range (`_` and `+` for smaller steps)
+* Use `v` to toggle vectorscope mode
+* Use `s` to toggle scatter mode
 * Decrease/increase terminal font size to increase/decrease scope resolution.

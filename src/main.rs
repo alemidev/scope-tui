@@ -1,9 +1,9 @@
 mod parser;
 mod app;
 
-use std::{io, time::Duration};
+use std::{io::{self, ErrorKind}, time::Duration};
 use tui::{
-	backend::CrosstermBackend,
+	backend::{CrosstermBackend, Backend},
 	widgets::{Block, Chart, Axis, Dataset, GraphType},
 	// layout::{Layout, Constraint, Direction},
 	Terminal, text::Span, style::{Style, Color, Modifier}, symbols
@@ -32,11 +32,11 @@ struct Args {
 
 	/// Size of audio buffer, and width of scope
 	#[arg(short, long, default_value_t = 8192)]
-	width: u32,
+	buffer: u32,
 
-	/// Max value on Amplitude scale
+	/// Max value, positive and negative, on amplitude scale
 	#[arg(short, long, default_value_t = 20000)]
-	scale: u32,
+	range: u32,
 
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
@@ -46,7 +46,7 @@ struct Args {
 	#[arg(long, default_value_t = false)]
 	no_braille: bool,
 
-	/// Use vintage looking scatter mode
+	/// Use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
 	scatter: bool,
 
@@ -78,9 +78,44 @@ fn data_set<'a>(
 		.data(&data)
 }
 
-
 fn main() -> Result<(), io::Error> {
 	let args = Args::parse();
+
+	// setup terminal
+	enable_raw_mode()?;
+	let mut stdout = io::stdout();
+	execute!(stdout, EnterAlternateScreen)?;
+	let backend = CrosstermBackend::new(stdout);
+	let mut terminal = Terminal::new(backend)?;
+	terminal.hide_cursor()?;
+
+	match run_app(args, &mut terminal) {
+		Ok(()) => {},
+		Err(e) => {
+			println!("[!] Error executing app: {:?}", e);
+		}
+	}
+
+	// restore terminal
+	disable_raw_mode()?;
+	execute!(
+		terminal.backend_mut(),
+		LeaveAlternateScreen,
+		DisableMouseCapture
+	)?;
+	terminal.show_cursor()?;
+
+	Ok(())
+}
+
+
+fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
+	// prepare globals
+	let mut buffer : Vec<u8> = vec![0; args.buffer as usize];
+	let mut cfg = AppConfig::from(&args);
+	let fmt = Signed16PCM{}; // TODO some way to choose this?
+
+	let mut pause = false;
 
 	// setup audio capture
 	let spec = Spec {
@@ -95,8 +130,7 @@ fn main() -> Result<(), io::Error> {
 		None => None,
 	};
 
-
-	let s = Simple::new(
+	let s = match Simple::new(
 		None,                // Use the default server
 		"ScopeTUI",          // Our application’s name
 		Direction::Record,   // We want a record stream
@@ -105,29 +139,27 @@ fn main() -> Result<(), io::Error> {
 		&spec,               // Our sample format
 		None,                // Use default channel map
 		Some(&BufferAttr {
-			maxlength: 32 * args.width,
-			fragsize: args.width,
+			maxlength: 32 * args.buffer,
+			fragsize: args.buffer,
 			..Default::default()
 		}),
-	).unwrap();
+	) {
+		Ok(s) => s,
+		Err(e) => {
+			println!("[!] Could not connect to pulseaudio : {:?}", e);
+			return Err(io::Error::new(ErrorKind::Other, "could not connect to pulseaudio"));
+		},
+	};
 
-	// setup terminal
-	enable_raw_mode()?;
-	let mut stdout = io::stdout();
-	execute!(stdout, EnterAlternateScreen)?;
-	let backend = CrosstermBackend::new(stdout);
-	let mut terminal = Terminal::new(backend)?;
-	terminal.hide_cursor().unwrap();
-
-	// prepare globals
-	let mut buffer : Vec<u8> = vec![0; args.width as usize];
-	let mut cfg = AppConfig::from(args);
-	let fmt = Signed16PCM{}; // TODO some way to choose this?
-
-	let mut pause = false;
 
 	loop {
-		s.read(&mut buffer).unwrap();
+		match s.read(&mut buffer) {
+			Ok(()) => {},
+			Err(e) => {
+				println!("[!] Could not read data from pulseaudio : {:?}", e);
+				return Err(io::Error::new(ErrorKind::Other, "could not read from pulseaudio"));
+			},
+		}
 
 		if !pause {
 			let mut datasets = vec![];
@@ -138,7 +170,7 @@ fn main() -> Result<(), io::Error> {
 			let mut ref_data_y = Vec::new();
 
 			if cfg.references {
-		
+				// TODO find a proper way to put these references...
 				if cfg.vectorscope() {
 					for x in -(cfg.scale() as i64)..(cfg.scale() as i64) {
 						ref_data_x.push((x as f64, 0 as f64));
@@ -182,7 +214,7 @@ fn main() -> Result<(), io::Error> {
 					.x_axis(Axis::default()
 						.title(Span::styled(cfg.name(app::Axis::X), Style::default().fg(Color::Cyan)))
 						.style(Style::default().fg(cfg.axis_color))
-						.bounds(cfg.bounds(app::Axis::X)))
+						.bounds(cfg.bounds(app::Axis::X))) // TODO allow to have axis sometimes?
 					.y_axis(Axis::default()
 						.title(Span::styled(cfg.name(app::Axis::Y), Style::default().fg(Color::Cyan)))
 						.style(Style::default().fg(cfg.axis_color))
@@ -196,8 +228,6 @@ fn main() -> Result<(), io::Error> {
 				KeyModifiers::CONTROL => {
 					match key.code {
 						KeyCode::Char('c') => break,
-						KeyCode::Char('+') => cfg.update_scale(100),
-						KeyCode::Char('-') => cfg.update_scale(-100),
 						_ => {},
 					}
 				},
@@ -205,8 +235,10 @@ fn main() -> Result<(), io::Error> {
 					match key.code {
 						KeyCode::Char('q') => break,
 						KeyCode::Char(' ') => pause = !pause,
-						KeyCode::Char('+') => cfg.update_scale(1000),
-						KeyCode::Char('-') => cfg.update_scale(-1000),
+						KeyCode::Char('=') => cfg.update_scale(-1000),
+						KeyCode::Char('-') => cfg.update_scale(1000),
+						KeyCode::Char('+') => cfg.update_scale(-100),
+						KeyCode::Char('_') => cfg.update_scale(100),
 						KeyCode::Char('v') => cfg.set_vectorscope(!cfg.vectorscope()),
 						KeyCode::Char('s') => cfg.set_scatter(!cfg.scatter()),
 						_ => {},
@@ -215,15 +247,6 @@ fn main() -> Result<(), io::Error> {
 			}
 		}
 	}
-
-	// restore terminal
-	disable_raw_mode()?;
-	execute!(
-		terminal.backend_mut(),
-		LeaveAlternateScreen,
-		DisableMouseCapture
-	)?;
-	terminal.show_cursor()?;
 
 	Ok(())
 }
