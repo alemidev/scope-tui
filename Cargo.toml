@@ -1,9 +1,17 @@
 [package]
 name = "scope-tui"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+authors = [ "alemi <me@alemi.dev>" ]
+description = """
+A simple audio visualization tool for the terminal built with tui-rs and libpulse-simple-binding, inspired from cava
+"""
+keywords = ["tui", "terminal", "audio", "visualization", "scope", "dashboard"]
+repository = "https://github.com/alemidev/scope-tui"
+readme = "README.md"
+# documentation =
+# license = 
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tui = "0.19"
