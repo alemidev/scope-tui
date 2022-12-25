@@ -69,7 +69,7 @@ fn poll_event() -> Result<Option<Event>, std::io::Error> {
 
 fn data_set<'a>(
 		name: &'a str,
-		data: &'a Vec<(f64, f64)>,
+		data: &'a [(f64, f64)],
 		marker_type: symbols::Marker,
 		graph_type: GraphType,
 		axis_color: Color
@@ -198,7 +198,9 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 
 			if cfg.vectorscope() {
 				merged = fmt.vectorscope(&mut buffer);
-				datasets.push(data_set("V", &merged, cfg.marker_type, cfg.graph_type(), cfg.primary_color));
+				let pivot = merged.len() / 2;
+				datasets.push(data_set("1", &merged[..pivot], cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
+				datasets.push(data_set("2", &merged[pivot..], cfg.marker_type, cfg.graph_type(), cfg.primary_color));
 			} else {
 				(left, right) = fmt.oscilloscope(&mut buffer);
 				datasets.push(data_set("R", &right, cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
