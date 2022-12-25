@@ -1,7 +1,7 @@
 mod parser;
 mod app;
 
-use std::{io::{self, ErrorKind}, time::Duration};
+use std::{io::{self, ErrorKind}, time::{Duration, SystemTime}};
 use tui::{
 	backend::{CrosstermBackend, Backend},
 	widgets::{Block, Chart, Axis, Dataset, GraphType},
@@ -37,6 +37,10 @@ struct Args {
 	/// Max value, positive and negative, on amplitude scale
 	#[arg(short, long, default_value_t = 20000)]
 	range: u32,
+
+	/// Sample rate to use
+	#[arg(long, default_value_t = 44100)]
+	sample_rate: u32,
 
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
@@ -121,7 +125,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 	let spec = Spec {
 		format: Format::S16NE,
 		channels: 2,
-		rate: 44100,
+		rate: args.sample_rate,
 	};
 	assert!(spec.is_valid());
 
@@ -151,6 +155,9 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 		},
 	};
 
+	let mut fps = 0;
+	let mut framerate = 0;
+	let mut last_poll = SystemTime::now();
 
 	loop {
 		match s.read(&mut buffer) {
@@ -196,6 +203,15 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 				(left, right) = fmt.oscilloscope(&mut buffer);
 				datasets.push(data_set("R", &right, cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
 				datasets.push(data_set("L", &left, cfg.marker_type, cfg.graph_type(), cfg.primary_color));
+
+			fps += 1;
+
+			if let Ok(d) = last_poll.elapsed() {
+				if d.as_secs() >= 1 {
+					framerate = fps;
+					fps = 0;
+					last_poll = SystemTime::now();
+				}
 			}
 
 			terminal.draw(|f| {
@@ -204,10 +220,10 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 					.block(Block::default().title(
 						Span::styled(
 							format!(
-								"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples",
+								"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
 								if cfg.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
 								if cfg.scatter() { "scatter" } else { "line" },
-								cfg.scale(), cfg.width(),
+								cfg.scale(), cfg.width(), args.sample_rate as f32 / 1000.0, framerate,
 							),
 						Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
 					))
