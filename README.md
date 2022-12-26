@@ -19,17 +19,17 @@ Arguments:
   [DEVICE]  Audio device to attach to
 
 Options:
-  -b, --buffer <BUFFER>                Size of audio buffer, and width of scope [default: 8192]
-  -r, --range <RANGE>                  Max value, positive and negative, on amplitude scale [default: 20000]
-      --scatter                        Use vintage looking scatter mode instead of line mode
-      --vectorscope                    Combine left and right channels into vectorscope view
-      --tune <TUNE>                    Tune buffer size to be in tune with given note (overrides buffer option)
-      --sample-rate <SAMPLE_RATE>      Sample rate to use [default: 44100]
-      --server-buffer <SERVER_BUFFER>  Pulseaudio server buffer size, in block number [default: 32]
-      --no-reference                   Don't draw reference line
-      --no-braille                     Don't use braille dots for drawing lines
-  -h, --help                           Print help information
-  -V, --version                        Print version information
+  -b, --buffer <SIZE>      Size of audio buffer, and width of scope [default: 8192]
+  -r, --range <SIZE>       Max value, positive and negative, on amplitude scale [default: 20000]
+      --scatter            Use vintage looking scatter mode instead of line mode
+      --vectorscope        Combine left and right channels into vectorscope view
+      --tune <NOTE>        Tune buffer size to be in tune with given note (overrides buffer option)
+      --sample-rate <HZ>   Sample rate to use [default: 44100]
+      --server-buffer <N>  Pulseaudio server buffer size, in block number [default: 32]
+      --no-reference       Don't draw reference line
+      --no-braille         Don't use braille dots for drawing lines
+  -h, --help               Print help information
+  -V, --version            Print version information
 ```
 
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192`

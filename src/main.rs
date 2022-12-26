@@ -34,12 +34,12 @@ struct Args {
 	device: Option<String>,
 
 	/// Size of audio buffer, and width of scope
-	#[arg(short, long, default_value_t = 8192)]
+	#[arg(short, long, value_name = "SIZE", default_value_t = 8192)]
 	buffer: u32,
 
 	/// Max value, positive and negative, on amplitude scale
-	#[arg(short, long, default_value_t = 20000)]
-	range: u32,
+	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
+	range: u32, // TODO counterintuitive, improve this
 
 	/// Use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
@@ -50,15 +50,15 @@ struct Args {
 	vectorscope: bool,
 
 	/// Tune buffer size to be in tune with given note (overrides buffer option)
-	#[arg(long)]
+	#[arg(long, value_name = "NOTE")]
 	tune: Option<Note>,
 
 	/// Sample rate to use
-	#[arg(long, default_value_t = 44100)]
+	#[arg(long, value_name = "HZ", default_value_t = 44100)]
 	sample_rate: u32,
 
 	/// Pulseaudio server buffer size, in block number
-	#[arg(long, default_value_t = 32)]
+	#[arg(long, value_name = "N", default_value_t = 32)]
 	server_buffer: u32,
 
 	/// Don't draw reference line
