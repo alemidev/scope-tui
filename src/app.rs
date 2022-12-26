@@ -2,7 +2,7 @@ use tui::{style::Color, widgets::GraphType, symbols};
 
 // use crate::parser::SampleParser;
 
-pub enum Axis {
+pub enum Dimension {
 	X, Y
 }
 
@@ -63,14 +63,14 @@ pub struct App {
 impl App {
 	fn update_values(&mut self) {
 		if self.cfg.vectorscope {
-			self.names.x = "- left".into();
+			self.names.x = "left -".into();
 			self.names.y = "| right".into();
 			self.bounds.x = [-(self.cfg.scale as f64), self.cfg.scale as f64];
 			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
 			self.references.x = vec![(-(self.cfg.scale as f64), 0.0), (self.cfg.scale as f64, 0.0)];
 			self.references.y = vec![(0.0, -(self.cfg.scale as f64)), (0.0, self.cfg.scale as f64)];
 		} else {
-			self.names.x = "- time".into();
+			self.names.x = "time -".into();
 			self.names.y = "| amplitude".into();
 			self.bounds.x = [0.0, self.cfg.width as f64];
 			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
@@ -80,17 +80,17 @@ impl App {
 		}
 	}
 
-	pub fn bounds(&self, axis: Axis) -> [f64;2] {
+	pub fn bounds(&self, axis: &Dimension) -> [f64;2] {
 		match axis {
-			Axis::X => self.bounds.x,
-			Axis::Y => self.bounds.y,
+			Dimension::X => self.bounds.x,
+			Dimension::Y => self.bounds.y,
 		}
 	}
 
-	pub fn name(&self, axis: Axis) -> &str {
+	pub fn name(&self, axis: &Dimension) -> &str {
 		match axis {
-			Axis::X => self.names.x.as_str(),
-			Axis::Y => self.names.y.as_str(),
+			Dimension::X => self.names.x.as_str(),
+			Dimension::Y => self.names.y.as_str(),
 		}
 	}
 

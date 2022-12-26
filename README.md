@@ -39,4 +39,5 @@ To change audio buffer size, the PulseAudio client must be restarted. Because of
 * Use `-` and `=` to decrease or increase range (`_` and `+` for smaller steps)
 * Use `v` to toggle vectorscope mode
 * Use `s` to toggle scatter mode
+* Use `h` to toggle interface
 * Decrease/increase terminal font size to increase/decrease scope resolution.

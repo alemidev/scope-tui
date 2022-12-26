@@ -7,7 +7,7 @@ use tui::{
 	backend::{CrosstermBackend, Backend},
 	widgets::{Block, Chart, Axis, Dataset, GraphType},
 	// layout::{Layout, Constraint, Direction},
-	Terminal, text::Span, style::{Style, Color, Modifier}, symbols
+	Terminal, text::Span, style::{Style, Color, Modifier}, symbols, layout::Alignment
 };
 use crossterm::{
 	event::{self, DisableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -68,29 +68,6 @@ struct Args {
 	/// Don't use braille dots for drawing lines
 	#[arg(long, default_value_t = false)]
 	no_braille: bool,
-}
-
-fn poll_event() -> Result<Option<Event>, std::io::Error> {
-	if event::poll(Duration::from_millis(0))? {
-		Ok(Some(event::read()?))
-	} else {
-		Ok(None)
-	}
-}
-
-fn data_set<'a>(
-		name: &'a str,
-		data: &'a [(f64, f64)],
-		marker_type: symbols::Marker,
-		graph_type: GraphType,
-		axis_color: Color
-) -> Dataset<'a> {
-	Dataset::default()
-		.name(name)
-		.marker(marker_type)
-		.graph_type(graph_type)
-		.style(Style::default().fg(axis_color))
-		.data(&data)
 }
 
 fn main() -> Result<(), io::Error> {
@@ -216,7 +193,6 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			datasets.push(data_set("L", &left,  app.cfg.marker_type, app.graph_type(), app.cfg.primary_color));
 		}
 		
-
 		fps += 1;
 
 		if last_poll.elapsed().as_secs() >= 1 {
@@ -228,24 +204,9 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 		terminal.draw(|f| {
 			let size = f.size();
 			let chart = Chart::new(datasets)
-				.block(Block::default().title(
-					Span::styled(
-						format!(
-							"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
-							if app.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
-							if app.scatter() { "scatter" } else { "line" },
-							app.scale(), app.width(), args.sample_rate as f32 / 1000.0, framerate,
-						),
-					Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
-				))
-				.x_axis(Axis::default()
-					.title(Span::styled(app.name(app::Axis::X), Style::default().fg(Color::Cyan)))
-					.style(Style::default().fg(app.cfg.axis_color))
-					.bounds(app.bounds(app::Axis::X))) // TODO allow to have axis sometimes?
-				.y_axis(Axis::default()
-					.title(Span::styled(app.name(app::Axis::Y), Style::default().fg(Color::Cyan)))
-					.style(Style::default().fg(app.cfg.axis_color))
-					.bounds(app.bounds(app::Axis::Y)));
+				.block(block(&app, args.sample_rate as f32, framerate))
+				.x_axis(axis(&app, app::Dimension::X)) // TODO allow to have axis sometimes?
+				.y_axis(axis(&app, app::Dimension::Y));
 			f.render_widget(chart, size)
 		})?;
 
@@ -267,6 +228,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 						KeyCode::Char('_') => app.update_scale(100),
 						KeyCode::Char('v') => app.set_vectorscope(!app.vectorscope()),
 						KeyCode::Char('s') => app.set_scatter(!app.scatter()),
+						KeyCode::Char('h') => app.cfg.references = !app.cfg.references,
 						_ => {},
 					}
 				}
@@ -275,4 +237,58 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 	}
 
 	Ok(())
+}
+
+
+// TODO these functions probably shouldn't be here
+
+fn poll_event() -> Result<Option<Event>, std::io::Error> {
+	if event::poll(Duration::from_millis(0))? {
+		Ok(Some(event::read()?))
+	} else {
+		Ok(None)
+	}
+}
+
+fn data_set<'a>(
+		name: &'a str,
+		data: &'a [(f64, f64)],
+		marker_type: symbols::Marker,
+		graph_type: GraphType,
+		axis_color: Color
+) -> Dataset<'a> {
+	Dataset::default()
+		.name(name)
+		.marker(marker_type)
+		.graph_type(graph_type)
+		.style(Style::default().fg(axis_color))
+		.data(&data)
+}
+
+fn axis(app: &App, dim: app::Dimension) -> Axis {
+	let mut a = Axis::default();
+	if app.cfg.references {
+		a = a.title(Span::styled(app.name(&dim), Style::default().fg(Color::Cyan)));
+	}
+	a.style(Style::default().fg(app.cfg.axis_color))
+		.bounds(app.bounds(&dim))
+}
+
+fn block(app: &App, sample_rate: f32, framerate: u32) -> Block {
+	let mut b = Block::default();
+
+	if app.cfg.references {
+		b = b.title(
+			Span::styled(
+				format!(
+					"TUI {}  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
+					if app.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
+					if app.scatter() { "scatter" } else { "line" },
+					app.scale(), app.width(), sample_rate / 1000.0, framerate,
+				),
+			Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
+		).title_alignment(Alignment::Center);
+	}
+
+	b
 }
