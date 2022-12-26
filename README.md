@@ -19,14 +19,17 @@ Arguments:
   [DEVICE]  Audio device to attach to
 
 Options:
-  -b, --buffer <BUFFER>  Size of audio buffer, and width of scope [default: 8192]
-  -r, --range <RANGE>    Max value, positive and negative, on amplitude scale [default: 20000]
-      --no-reference     Don't draw reference line
-      --no-braille       Don't use braille dots for drawing lines
-      --scatter          Use vintage looking scatter mode instead of line mode
-      --vectorscope      Combine left and right channels into vectorscope view
-  -h, --help             Print help information
-  -V, --version          Print version information
+  -b, --buffer <BUFFER>                Size of audio buffer, and width of scope [default: 8192]
+  -r, --range <RANGE>                  Max value, positive and negative, on amplitude scale [default: 20000]
+      --scatter                        Use vintage looking scatter mode instead of line mode
+      --vectorscope                    Combine left and right channels into vectorscope view
+      --tune <TUNE>                    Tune buffer size to be in tune with given note (overrides buffer option)
+      --sample-rate <SAMPLE_RATE>      Sample rate to use [default: 44100]
+      --server-buffer <SERVER_BUFFER>  Pulseaudio server buffer size, in block number [default: 32]
+      --no-reference                   Don't draw reference line
+      --no-braille                     Don't use braille dots for drawing lines
+  -h, --help                           Print help information
+  -V, --version                        Print version information
 ```
 
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192`
@@ -41,3 +44,10 @@ To change audio buffer size, the PulseAudio client must be restarted. Because of
 * Use `s` to toggle scatter mode
 * Use `h` to toggle interface
 * Decrease/increase terminal font size to increase/decrease scope resolution.
+
+# About precision
+While "scatter" mode is as precise as Pulseaudio and the terminal lets us be, "line" mode simply draws a straight line across points, meaning high frequencies don't get properly represented.
+
+Latency is kept to a minimum thanks to small buffer and block sizes.
+
+Sample rate can be freely specified but will ultimately be limited by source's actual sample rate.
