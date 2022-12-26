@@ -1,7 +1,7 @@
 # scope-tui
 A simple oscilloscope/vectorscope in your terminal
 
-![scope-tui interface](https://cdn.alemi.dev/scope-tui.png)
+![scope-tui interface](https://cdn.alemi.dev/scope-tui-wide.png)
 
 Currently only for Linux (with Pulseaudio)
 
