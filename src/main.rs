@@ -21,7 +21,8 @@ use libpulse_binding::sample::{Spec, Format};
 use clap::Parser;
 
 use parser::{SampleParser, Signed16PCM};
-use app::AppConfig;
+
+use crate::app::App;
 
 /// A simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
@@ -38,6 +39,14 @@ struct Args {
 	#[arg(short, long, default_value_t = 20000)]
 	range: u32,
 
+	/// Use vintage looking scatter mode instead of line mode
+	#[arg(long, default_value_t = false)]
+	scatter: bool,
+
+	/// Combine left and right channels into vectorscope view
+	#[arg(long, default_value_t = false)]
+	vectorscope: bool,
+
 	/// Sample rate to use
 	#[arg(long, default_value_t = 44100)]
 	sample_rate: u32,
@@ -49,14 +58,6 @@ struct Args {
 	/// Don't use braille dots for drawing lines
 	#[arg(long, default_value_t = false)]
 	no_braille: bool,
-
-	/// Use vintage looking scatter mode instead of line mode
-	#[arg(long, default_value_t = false)]
-	scatter: bool,
-
-	/// Combine left and right channels into vectorscope view
-	#[arg(long, default_value_t = false)]
-	vectorscope: bool,
 }
 
 fn poll_event() -> Result<Option<Event>, std::io::Error> {
@@ -83,7 +84,7 @@ fn data_set<'a>(
 }
 
 fn main() -> Result<(), io::Error> {
-	let args = Args::parse();
+	let mut args = Args::parse();
 
 	// setup terminal
 	enable_raw_mode()?;
@@ -116,7 +117,7 @@ fn main() -> Result<(), io::Error> {
 fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 	// prepare globals
 	let mut buffer : Vec<u8> = vec![0; args.buffer as usize];
-	let mut cfg = AppConfig::from(&args);
+	let mut app = App::from(&args);
 	let fmt = Signed16PCM{}; // TODO some way to choose this?
 
 	let mut pause = false;
@@ -157,7 +158,9 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 
 	let mut fps = 0;
 	let mut framerate = 0;
-	let mut last_poll = SystemTime::now();
+	let mut last_poll = Instant::now();
+	let (mut left, mut right) = (vec![], vec![]);
+	let mut merged = vec![];
 
 	loop {
 		match s.read(&mut buffer) {
@@ -168,78 +171,65 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			},
 		}
 
+		let mut datasets = vec![];
+
 		if !pause {
-			let mut datasets = vec![];
-			let (left, right);
-			let merged;
-
-			let mut ref_data_x = Vec::new();
-			let mut ref_data_y = Vec::new();
-
-			if cfg.references {
-				// TODO find a proper way to put these references...
-				if cfg.vectorscope() {
-					for x in -(cfg.scale() as i64)..(cfg.scale() as i64) {
-						ref_data_x.push((x as f64, 0 as f64));
-						ref_data_y.push((0 as f64, x as f64));
-					}
-				} else {
-					for x in 0..cfg.width() {
-						ref_data_x.push((x as f64, 0 as f64));
-					}
-					for y in -(cfg.scale() as i64)..(cfg.scale() as i64) {
-						ref_data_y.push(((cfg.width() as f64) / 2.0, y as f64));
-					}
-				}
-		
-				datasets.push(data_set("X", &ref_data_x, cfg.marker_type, GraphType::Line, cfg.axis_color));
-				datasets.push(data_set("Y", &ref_data_y, cfg.marker_type, GraphType::Line, cfg.axis_color));
-			}
-
-			if cfg.vectorscope() {
+			if app.vectorscope() {
 				merged = fmt.vectorscope(&mut buffer);
-				let pivot = merged.len() / 2;
-				datasets.push(data_set("1", &merged[..pivot], cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
-				datasets.push(data_set("2", &merged[pivot..], cfg.marker_type, cfg.graph_type(), cfg.primary_color));
 			} else {
 				(left, right) = fmt.oscilloscope(&mut buffer);
-				datasets.push(data_set("R", &right, cfg.marker_type, cfg.graph_type(), cfg.secondary_color));
-				datasets.push(data_set("L", &left, cfg.marker_type, cfg.graph_type(), cfg.primary_color));
-
-			fps += 1;
-
-			if let Ok(d) = last_poll.elapsed() {
-				if d.as_secs() >= 1 {
-					framerate = fps;
-					fps = 0;
-					last_poll = SystemTime::now();
-				}
 			}
-
-			terminal.draw(|f| {
-				let size = f.size();
-				let chart = Chart::new(datasets)
-					.block(Block::default().title(
-						Span::styled(
-							format!(
-								"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
-								if cfg.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
-								if cfg.scatter() { "scatter" } else { "line" },
-								cfg.scale(), cfg.width(), args.sample_rate as f32 / 1000.0, framerate,
-							),
-						Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
-					))
-					.x_axis(Axis::default()
-						.title(Span::styled(cfg.name(app::Axis::X), Style::default().fg(Color::Cyan)))
-						.style(Style::default().fg(cfg.axis_color))
-						.bounds(cfg.bounds(app::Axis::X))) // TODO allow to have axis sometimes?
-					.y_axis(Axis::default()
-						.title(Span::styled(cfg.name(app::Axis::Y), Style::default().fg(Color::Cyan)))
-						.style(Style::default().fg(cfg.axis_color))
-						.bounds(cfg.bounds(app::Axis::Y)));
-				f.render_widget(chart, size)
-			})?;
 		}
+
+		if app.cfg.references {
+			// for reference in app.references() {
+			// 	datasets.push(reference);
+			// }
+			datasets.push(data_set("", &app.references.x, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
+			datasets.push(data_set("", &app.references.y, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
+		}
+
+		if app.vectorscope() {
+			let pivot = merged.len() / 2;
+			datasets.push(data_set("1", &merged[..pivot], app.cfg.marker_type, app.graph_type(), app.cfg.secondary_color));
+			datasets.push(data_set("2", &merged[pivot..], app.cfg.marker_type, app.graph_type(), app.cfg.primary_color));
+		} else {
+			datasets.push(data_set("R", &right, app.cfg.marker_type, app.graph_type(), app.cfg.secondary_color));
+			datasets.push(data_set("L", &left,  app.cfg.marker_type, app.graph_type(), app.cfg.primary_color));
+		}
+		
+
+		fps += 1;
+
+		if last_poll.elapsed().as_secs() >= 1 {
+			framerate = fps;
+			fps = 0;
+			last_poll = Instant::now();
+		}
+
+		terminal.draw(|f| {
+			let size = f.size();
+			let chart = Chart::new(datasets)
+				.block(Block::default().title(
+					Span::styled(
+						format!(
+							"TUI {}  <me@alemi.dev>  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
+							if app.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
+							if app.scatter() { "scatter" } else { "line" },
+							app.scale(), app.width(), args.sample_rate as f32 / 1000.0, framerate,
+						),
+					Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
+				))
+				.x_axis(Axis::default()
+					.title(Span::styled(app.name(app::Axis::X), Style::default().fg(Color::Cyan)))
+					.style(Style::default().fg(app.cfg.axis_color))
+					.bounds(app.bounds(app::Axis::X))) // TODO allow to have axis sometimes?
+				.y_axis(Axis::default()
+					.title(Span::styled(app.name(app::Axis::Y), Style::default().fg(Color::Cyan)))
+					.style(Style::default().fg(app.cfg.axis_color))
+					.bounds(app.bounds(app::Axis::Y)));
+			f.render_widget(chart, size)
+		})?;
 
 		if let Some(Event::Key(key)) = poll_event()? {
 			match key.modifiers {
@@ -253,12 +243,12 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 					match key.code {
 						KeyCode::Char('q') => break,
 						KeyCode::Char(' ') => pause = !pause,
-						KeyCode::Char('=') => cfg.update_scale(-1000),
-						KeyCode::Char('-') => cfg.update_scale(1000),
-						KeyCode::Char('+') => cfg.update_scale(-100),
-						KeyCode::Char('_') => cfg.update_scale(100),
-						KeyCode::Char('v') => cfg.set_vectorscope(!cfg.vectorscope()),
-						KeyCode::Char('s') => cfg.set_scatter(!cfg.scatter()),
+						KeyCode::Char('=') => app.update_scale(-1000),
+						KeyCode::Char('-') => app.update_scale(1000),
+						KeyCode::Char('+') => app.update_scale(-100),
+						KeyCode::Char('_') => app.update_scale(100),
+						KeyCode::Char('v') => app.set_vectorscope(!app.vectorscope()),
+						KeyCode::Char('s') => app.set_scatter(!app.scatter()),
 						_ => {},
 					}
 				}
