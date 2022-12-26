@@ -1,7 +1,8 @@
 mod parser;
 mod app;
+mod music;
 
-use std::{io::{self, ErrorKind}, time::{Duration, SystemTime}};
+use std::{io::{self, ErrorKind}, time::{Duration, Instant}};
 use tui::{
 	backend::{CrosstermBackend, Backend},
 	widgets::{Block, Chart, Axis, Dataset, GraphType},
@@ -23,6 +24,7 @@ use clap::Parser;
 use parser::{SampleParser, Signed16PCM};
 
 use crate::app::App;
+use crate::music::Note;
 
 /// A simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
@@ -47,9 +49,17 @@ struct Args {
 	#[arg(long, default_value_t = false)]
 	vectorscope: bool,
 
+	/// Tune buffer size to be in tune with given note (overrides buffer option)
+	#[arg(long)]
+	tune: Option<Note>,
+
 	/// Sample rate to use
 	#[arg(long, default_value_t = 44100)]
 	sample_rate: u32,
+
+	/// Pulseaudio server buffer size, in block number
+	#[arg(long, default_value_t = 32)]
+	server_buffer: u32,
 
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
@@ -86,6 +96,15 @@ fn data_set<'a>(
 fn main() -> Result<(), io::Error> {
 	let mut args = Args::parse();
 
+	if let Some(note) = &args.tune { // TODO make it less jank
+		if note != &Note::INVALID {
+			args.buffer = note.tune_buffer_size(0, args.sample_rate);
+			while args.buffer % 4 != 0 {
+				args.buffer += 1; // TODO jank but otherwise it doesn't align
+			}
+		}
+	}
+
 	// setup terminal
 	enable_raw_mode()?;
 	let mut stdout = io::stdout();
@@ -112,7 +131,6 @@ fn main() -> Result<(), io::Error> {
 
 	Ok(())
 }
-
 
 fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 	// prepare globals
@@ -144,7 +162,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 		&spec,               // Our sample format
 		None,                // Use default channel map
 		Some(&BufferAttr {
-			maxlength: 32 * args.buffer,
+			maxlength: args.server_buffer * args.buffer,
 			fragsize: args.buffer,
 			..Default::default()
 		}),
