@@ -229,7 +229,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			match key.modifiers {
 				KeyModifiers::CONTROL => {
 					match key.code {
-						KeyCode::Char('c') => break,
+						KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => break,
 						_ => {},
 					}
 				},
