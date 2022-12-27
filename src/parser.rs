@@ -8,59 +8,20 @@
 // }
 
 pub trait SampleParser {
-	fn oscilloscope(&self, data: &mut [u8]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>);
-	fn vectorscope (&self, data: &mut [u8]) -> Vec<(f64, f64)>;
+	fn oscilloscope(&self, data: &mut [u8], channels: u32) -> Vec<Vec<f64>>;
 }
 
 pub struct Signed16PCM {}
 
 /// TODO these are kinda inefficient, can they be faster?
 impl SampleParser for Signed16PCM {
-	fn oscilloscope(&self, data: &mut [u8]) -> (Vec<(f64, f64)>, Vec<(f64, f64)>) { 
-		let mut left = Vec::new(); // TODO does left really come first?
-		let mut right = Vec::new();
-		let mut buf : i16 = 0;
-		let mut count : f64 = 0.0;
-		let mut flip = false;
-		let mut side = false;
-		for sample in data {
-			if flip {
-				buf |= (*sample as i16) << 8;
-				if side {
-					left.push((count, buf as f64));
-				} else {
-					right.push((count, buf as f64));
-					count += 1.0;
-				}
-				buf = 0;
-				side = !side;
-			} else {
-				buf |= *sample as i16;
-			}
-			flip = !flip;
-		}
-		(left, right)
-	}
-
-	fn vectorscope(&self, data: &mut [u8]) -> Vec<(f64, f64)> { 
-		let mut out = Vec::new(); // TODO does left really come first?
-		let mut buf : i16 = 0;
-		let mut flip = false;
-		let mut point = None;
-		for sample in data {
-			if flip {
-				buf |= (*sample as i16) << 8;
-				if point.is_none() {
-					point = Some(buf as f64);
-				} else {
-					out.push((point.unwrap(), buf as f64));
-					point = None;
-				}
-				buf = 0;
-			} else {
-				buf |= *sample as i16;
-			}
-			flip = !flip;
+	fn oscilloscope(&self, data: &mut [u8], channels: u32) -> Vec<Vec<f64>> {
+		let mut out = vec![vec![]; channels as usize];
+		let mut channel = 0;
+		for chunk in data.chunks(2) {
+			let buf = chunk[0] as i16 | (chunk[1] as i16) << 8;
+			out[channel].push(buf as f64);
+			channel = (channel + 1 ) % channels as usize;
 		}
 		out
 	}

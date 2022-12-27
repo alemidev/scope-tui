@@ -40,9 +40,8 @@ impl Default for ChartReferences {
 
 pub struct AppConfig {
 	pub title: String,
-	pub primary_color: Color,
-	pub secondary_color: Color,
 	pub axis_color: Color,
+	pub palette: Vec<Color>,
 
 	scale: u32,
 	width: u32,
@@ -158,9 +157,8 @@ impl From::<&crate::Args> for App {
 
 		let cfg = AppConfig {
 			title: "TUI Oscilloscope  --  <me@alemi.dev>".into(),
-			primary_color: Color::Red,
-			secondary_color: Color::Yellow,
 			axis_color: Color::DarkGray,
+			palette: vec![Color::Red, Color::Yellow],
 			scale: args.range,
 			width: args.buffer / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
 			vectorscope: args.vectorscope,

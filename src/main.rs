@@ -154,8 +154,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 	let mut fps = 0;
 	let mut framerate = 0;
 	let mut last_poll = Instant::now();
-	let (mut left, mut right) = (vec![], vec![]);
-	let mut merged = vec![];
+	let mut channels = vec![];
 
 	loop {
 		match s.read(&mut buffer) {
@@ -166,33 +165,49 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			},
 		}
 
-		let mut datasets = vec![];
-
 		if !pause {
-			if app.vectorscope() {
-				merged = fmt.vectorscope(&mut buffer);
-			} else {
-				(left, right) = fmt.oscilloscope(&mut buffer);
+			channels = fmt.oscilloscope(&mut buffer, 2);
+		}
+
 			}
 		}
 
+		let mut measures;
+
+		if app.vectorscope() {
+			measures = vec![];
+			for chunk in channels.chunks(2) {
+				let mut tmp = vec![];
+				for i in 0..chunk[0].len() {
+					tmp.push((chunk[0][i] as f64, chunk[1][i] as f64));
+				}
+				let pivot = tmp.len() / 2;
+				measures.push(tmp[..pivot].to_vec());
+				measures.push(tmp[pivot..].to_vec());
+			}
+		} else {
+			measures = vec![vec![]; channels.len()];
+			for i in 0..channels[0].len() {
+				for j in 0..channels.len() {
+					measures[j].push((i as f64, channels[j][i]));
+				}
+			}
+		}
+
+		let mut datasets = vec![];
+
 		if app.cfg.references {
-			// for reference in app.references() {
-			// 	datasets.push(reference);
-			// }
 			datasets.push(data_set("", &app.references.x, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
 			datasets.push(data_set("", &app.references.y, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
 		}
 
-		if app.vectorscope() {
-			let pivot = merged.len() / 2;
-			datasets.push(data_set("1", &merged[..pivot], app.cfg.marker_type, app.graph_type(), app.cfg.secondary_color));
-			datasets.push(data_set("2", &merged[pivot..], app.cfg.marker_type, app.graph_type(), app.cfg.primary_color));
-		} else {
-			datasets.push(data_set("R", &right, app.cfg.marker_type, app.graph_type(), app.cfg.secondary_color));
-			datasets.push(data_set("L", &left,  app.cfg.marker_type, app.graph_type(), app.cfg.primary_color));
+		let ds_names = if app.vectorscope() { vec!["2", "1"] } else { vec!["R", "L"] };
+		let palette : Vec<Color> = app.cfg.palette.iter().rev().map(|x| x.clone()).collect();
+
+		for (i, ds) in measures.iter().rev().enumerate() {
+			datasets.push(data_set(ds_names[i], ds, app.cfg.marker_type, app.graph_type(), palette[i % palette.len()]));
 		}
-		
+
 		fps += 1;
 
 		if last_poll.elapsed().as_secs() >= 1 {
