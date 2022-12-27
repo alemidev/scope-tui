@@ -47,6 +47,7 @@ pub struct AppConfig {
 	width: u32,
 	vectorscope: bool,
 	pub references: bool,
+	pub triggering: bool,
 
 	pub marker_type: symbols::Marker,
 	pub graph_type: GraphType,
@@ -161,6 +162,7 @@ impl From::<&crate::Args> for App {
 			palette: vec![Color::Red, Color::Yellow],
 			scale: args.range,
 			width: args.buffer / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
+			triggering: args.triggering,
 			vectorscope: args.vectorscope,
 			references: !args.no_reference,
 			marker_type, graph_type,

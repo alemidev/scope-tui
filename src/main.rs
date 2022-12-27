@@ -61,6 +61,10 @@ struct Args {
 	#[arg(long, value_name = "N", default_value_t = 32)]
 	server_buffer: u32,
 
+	/// Start drawing at first rising edge
+	#[arg(long, default_value_t = false)]
+	triggering: bool,
+
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
 	no_reference: bool,
@@ -171,6 +175,20 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			channels = fmt.oscilloscope(&mut buffer, 2);
 		}
 
+		if app.cfg.triggering {
+			// TODO allow to customize channel to use for triggering and threshold
+			if let Some(ch) = channels.get(0) {
+				let mut discard = 0;
+				for i in 0..ch.len() { // seek to first sample rising through threshold
+					if i + 1 < ch.len() && ch[i] <= 0.0 && ch[i+1] > 0.0 { // triggered
+						break;
+					} else {
+						discard += 1;
+					}
+				}
+				for ch in channels.iter_mut() {
+					*ch = ch[discard..].to_vec();
+				}
 			}
 		}
 
@@ -246,6 +264,9 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 						KeyCode::Char('v') => app.set_vectorscope(!app.vectorscope()),
 						KeyCode::Char('s') => app.set_scatter(!app.scatter()),
 						KeyCode::Char('h') => app.cfg.references = !app.cfg.references,
+						KeyCode::Char('t') => app.cfg.triggering = !app.cfg.triggering,
+						KeyCode::Up        => {},
+						KeyCode::Down      => {},
 						_ => {},
 					}
 				}
@@ -298,8 +319,9 @@ fn block(app: &App, sample_rate: f32, framerate: u32) -> Block {
 		b = b.title(
 			Span::styled(
 				format!(
-					"TUI {}  --  {} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
+					"TUI {}  --  {}{} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
 					if app.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
+					if app.cfg.triggering { "triggered " } else { "" },
 					if app.scatter() { "scatter" } else { "line" },
 					app.scale(), app.width(), sample_rate / 1000.0, framerate,
 				),
