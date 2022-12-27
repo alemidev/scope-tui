@@ -51,7 +51,7 @@ struct Args {
 
 	/// Tune buffer size to be in tune with given note (overrides buffer option)
 	#[arg(long, value_name = "NOTE")]
-	tune: Option<Note>,
+	tune: Option<String>,
 
 	/// Sample rate to use
 	#[arg(long, value_name = "HZ", default_value_t = 44100)]
@@ -73,12 +73,14 @@ struct Args {
 fn main() -> Result<(), io::Error> {
 	let mut args = Args::parse();
 
-	if let Some(note) = &args.tune { // TODO make it less jank
-		if note != &Note::INVALID {
-			args.buffer = note.tune_buffer_size(0, args.sample_rate);
+	if let Some(txt) = &args.tune { // TODO make it less jank
+		if let Ok(note) = txt.parse::<Note>() {
+			args.buffer = note.tune_buffer_size(args.sample_rate);
 			while args.buffer % 4 != 0 {
 				args.buffer += 1; // TODO jank but otherwise it doesn't align
 			}
+		} else {
+			eprintln!("[!] Unrecognized note '{}', ignoring option", txt);
 		}
 	}
 
