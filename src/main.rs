@@ -1,5 +1,6 @@
 mod parser;
 mod app;
+mod config;
 mod music;
 
 use std::{io::{self, ErrorKind}, time::{Duration, Instant}};
@@ -25,6 +26,7 @@ use parser::{SampleParser, Signed16PCM};
 
 use crate::app::App;
 use crate::music::Note;
+use crate::config::Dimension;
 
 /// A simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
@@ -194,16 +196,17 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 
 		let mut measures;
 
-		if app.vectorscope() {
+		if app.cfg.vectorscope {
 			measures = vec![];
 			for chunk in channels.chunks(2) {
 				let mut tmp = vec![];
 				for i in 0..chunk[0].len() {
 					tmp.push((chunk[0][i] as f64, chunk[1][i] as f64));
 				}
+				// split it in two so the math downwards still works the same
 				let pivot = tmp.len() / 2;
+				measures.push(tmp[pivot..].to_vec()); // put more recent first
 				measures.push(tmp[..pivot].to_vec());
-				measures.push(tmp[pivot..].to_vec());
 			}
 		} else {
 			measures = vec![vec![]; channels.len()];
@@ -221,11 +224,11 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			datasets.push(data_set("", &app.references.y, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
 		}
 
-		let ds_names = if app.vectorscope() { vec!["2", "1"] } else { vec!["R", "L"] };
+		let ds_names = if app.cfg.vectorscope { vec!["1", "2"] } else { vec!["R", "L"] };
 		let palette : Vec<Color> = app.cfg.palette.iter().rev().map(|x| x.clone()).collect();
 
 		for (i, ds) in measures.iter().rev().enumerate() {
-			datasets.push(data_set(ds_names[i], ds, app.cfg.marker_type, app.graph_type(), palette[i % palette.len()]));
+			datasets.push(data_set(ds_names[i], ds, app.cfg.marker_type, app.cfg.graph_type, palette[i % palette.len()]));
 		}
 
 		fps += 1;
@@ -240,8 +243,8 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 			let size = f.size();
 			let chart = Chart::new(datasets)
 				.block(block(&app, args.sample_rate as f32, framerate))
-				.x_axis(axis(&app, app::Dimension::X)) // TODO allow to have axis sometimes?
-				.y_axis(axis(&app, app::Dimension::Y));
+				.x_axis(axis(&app, Dimension::X)) // TODO allow to have axis sometimes?
+				.y_axis(axis(&app, Dimension::Y));
 			f.render_widget(chart, size)
 		})?;
 
@@ -261,8 +264,8 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 						KeyCode::Char('-') => app.update_scale(1000),
 						KeyCode::Char('+') => app.update_scale(-100),
 						KeyCode::Char('_') => app.update_scale(100),
-						KeyCode::Char('v') => app.set_vectorscope(!app.vectorscope()),
-						KeyCode::Char('s') => app.set_scatter(!app.scatter()),
+						KeyCode::Char('v') => app.cfg.vectorscope = !app.cfg.vectorscope,
+						KeyCode::Char('s') => app.set_scatter(!app.scatter()), // TODO no funcs
 						KeyCode::Char('h') => app.cfg.references = !app.cfg.references,
 						KeyCode::Char('t') => app.cfg.triggering = !app.cfg.triggering,
 						KeyCode::Up        => {},
@@ -271,6 +274,7 @@ fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io
 					}
 				}
 			}
+			app.update_values();
 		}
 	}
 
@@ -303,7 +307,7 @@ fn data_set<'a>(
 		.data(&data)
 }
 
-fn axis(app: &App, dim: app::Dimension) -> Axis {
+fn axis(app: &App, dim: Dimension) -> Axis {
 	let mut a = Axis::default();
 	if app.cfg.references {
 		a = a.title(Span::styled(app.name(&dim), Style::default().fg(Color::Cyan)));
@@ -320,10 +324,10 @@ fn block(app: &App, sample_rate: f32, framerate: u32) -> Block {
 			Span::styled(
 				format!(
 					"TUI {}  --  {}{} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
-					if app.vectorscope() { "Vectorscope" } else { "Oscilloscope" },
+					if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" },
 					if app.cfg.triggering { "triggered " } else { "" },
 					if app.scatter() { "scatter" } else { "line" },
-					app.scale(), app.width(), sample_rate / 1000.0, framerate,
+					app.cfg.scale, app.cfg.width, sample_rate / 1000.0, framerate,
 				),
 			Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
 		).title_alignment(Alignment::Center);

@@ -1,67 +1,31 @@
-use tui::{style::Color, widgets::GraphType, symbols};
 
-// use crate::parser::SampleParser;
+use std::{io::{self, ErrorKind}, time::{Duration, Instant}};
+use tui::{
+	style::Color, widgets::GraphType, symbols,
+	backend::Backend,
+	widgets::{Block, Chart, Axis, Dataset},
+	Terminal, text::Span, style::{Style, Modifier}, layout::Alignment
+};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 
-pub enum Dimension {
-	X, Y
-}
-
-#[derive(Default)]
-pub struct ChartNames {
-	x: String,
-	y: String,
-}
+use libpulse_simple_binding::Simple;
+use libpulse_binding::{stream::Direction, def::BufferAttr};
+use libpulse_binding::sample::{Spec, Format};
 
 
-pub struct ChartBounds {
-	x: [f64;2],
-	y: [f64;2],
-}
-
-impl Default for ChartBounds {
-	fn default() -> Self {
-		ChartBounds { x: [0.0, 0.0], y: [0.0, 0.0] }
-	}
-}
-
-pub struct ChartReferences {
-	pub x: Vec<(f64, f64)>,
-	pub y: Vec<(f64, f64)>,
-}
-
-impl Default for ChartReferences {
-	fn default() -> Self {
-		ChartReferences {
-			x: vec![(0.0, 0.0), (0.0, 1.0)],
-			y: vec![(0.5, 1.0), (0.5, -1.0)]
-		}
-	}
-}
-
-pub struct AppConfig {
-	pub title: String,
-	pub axis_color: Color,
-	pub palette: Vec<Color>,
-
-	scale: u32,
-	width: u32,
-	vectorscope: bool,
-	pub references: bool,
-	pub triggering: bool,
-
-	pub marker_type: symbols::Marker,
-	pub graph_type: GraphType,
-}
+use crate::Args;
+use crate::config::{ChartNames, ChartBounds, ChartReferences, AppConfig, Dimension};
+use crate::parser::{SampleParser, Signed16PCM};
 
 pub struct App {
 	pub cfg: AppConfig,
 	pub references: ChartReferences,
-	bounds: ChartBounds,
-	names: ChartNames,
+	pub bounds: ChartBounds,
+	pub names: ChartNames,
 }
 
 impl App {
-	fn update_values(&mut self) {
+	pub fn update_values(&mut self) {
 		if self.cfg.vectorscope {
 			self.names.x = "left -".into();
 			self.names.y = "| right".into();
@@ -94,18 +58,6 @@ impl App {
 		}
 	}
 
-	pub fn vectorscope(&self) -> bool {
-		self.cfg.vectorscope
-	}
-
-	pub fn scale(&self) -> u32 {
-		self.cfg.scale
-	}
-
-	pub fn width(&self) -> u32 {
-		self.cfg.width
-	}
-
 	pub fn scatter(&self) -> bool {
 		match self.cfg.graph_type {
 			GraphType::Scatter => true,
@@ -129,15 +81,6 @@ impl App {
 	// 			.data(&self.references.y),
 	// 	]
 	// }
-
-	pub fn graph_type(&self) -> GraphType {
-		self.cfg.graph_type
-	}
-
-	pub fn set_vectorscope(&mut self, vectorscope: bool) {
-		self.cfg.vectorscope = vectorscope;
-		self.update_values();
-	}
 
 	pub fn update_scale(&mut self, increment: i32) {
 		if increment > 0 || increment.abs() < self.cfg.scale as i32 {
@@ -163,6 +106,7 @@ impl From::<&crate::Args> for App {
 			scale: args.range,
 			width: args.buffer / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
 			triggering: args.triggering,
+			threshold: args.threshold,
 			vectorscope: args.vectorscope,
 			references: !args.no_reference,
 			marker_type, graph_type,
