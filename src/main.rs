@@ -56,6 +56,10 @@ pub struct Args {
 	#[arg(long, default_value_t = false)]
 	triggering: bool,
 
+	/// Threshold value for triggering
+	#[arg(long, default_value_t = 0.0)]
+	threshold: f64,
+
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
 	no_reference: bool,
@@ -87,12 +91,7 @@ fn main() -> Result<(), std::io::Error> {
 	let mut terminal = Terminal::new(backend)?;
 	terminal.hide_cursor()?;
 
-	match run_app(args, &mut terminal) {
-		Ok(()) => {},
-		Err(e) => {
-			println!("[!] Error executing app: {:?}", e);
-		}
-	}
+	let res = run_app(args, &mut terminal);
 
 	// restore terminal
 	disable_raw_mode()?;
@@ -103,5 +102,11 @@ fn main() -> Result<(), std::io::Error> {
 	)?;
 	terminal.show_cursor()?;
 
-	Ok(())
+	match res {
+		Ok(()) => Ok(()),
+		Err(e) => {
+			eprintln!("[!] Error executing app: {:?}", e);
+			Err(e)
+		}
+	}
 }

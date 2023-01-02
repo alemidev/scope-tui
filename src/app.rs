@@ -1,10 +1,10 @@
 
 use std::{io::{self, ErrorKind}, time::{Duration, Instant}};
 use tui::{
-	style::Color, widgets::GraphType, symbols,
+	style::Color, widgets::{GraphType, Table, Row, Cell}, symbols,
 	backend::Backend,
-	widgets::{Block, Chart, Axis, Dataset},
-	Terminal, text::Span, style::{Style, Modifier}, layout::Alignment
+	widgets::{Chart, Axis, Dataset},
+	Terminal, text::Span, style::{Style, Modifier}, layout::{Rect, Constraint}
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 
@@ -190,7 +190,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			if let Some(ch) = channels.get(0) {
 				let mut discard = 0;
 				for i in 0..ch.len() { // seek to first sample rising through threshold
-					if i + 1 < ch.len() && ch[i] <= 0.0 && ch[i+1] > 0.0 { // triggered
+					if i + 1 < ch.len() && ch[i] <= app.cfg.threshold && ch[i+1] > app.cfg.threshold { // triggered
 						break;
 					} else {
 						discard += 1;
@@ -201,6 +201,8 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 				}
 			}
 		}
+
+		let samples = channels.iter().map(|x| x.len()).max().unwrap_or(0);
 
 		let mut measures;
 
@@ -226,10 +228,13 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 		}
 
 		let mut datasets = vec![];
+		let trigger_pt;
 
 		if app.cfg.references {
+			trigger_pt = [(0.0, app.cfg.threshold)];
 			datasets.push(data_set("", &app.references.x, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
 			datasets.push(data_set("", &app.references.y, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
+			datasets.push(data_set("T", &trigger_pt, app.cfg.marker_type, GraphType::Scatter, Color::Cyan));
 		}
 
 		let ds_names = if app.cfg.vectorscope { vec!["1", "2"] } else { vec!["R", "L"] };
@@ -248,9 +253,29 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 		}
 
 		terminal.draw(|f| {
-			let size = f.size();
+			let mut size = f.size();
+			if app.cfg.references {
+				let heading = Table::new(
+					vec![
+						Row::new(
+							vec![
+								Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+								Cell::from(format!("{}{} mode", if app.cfg.triggering { "triggered " } else { "" }, if app.scatter() { "scatter" } else { "line" })),
+								Cell::from(format!("range +-{}", app.cfg.scale)),
+								Cell::from(format!("{} smpl", samples as u32)),
+								Cell::from(format!("{:.1} kHz", args.sample_rate as f32 / 1000.0)),
+								Cell::from(format!("{} fps", framerate)),
+							]
+						)
+					]
+				)
+				.style(Style::default().fg(Color::Cyan))
+				.widths(&[Constraint::Length(50), Constraint::Length(25), Constraint::Length(15), Constraint::Length(10), Constraint::Length(10), Constraint::Length(10)]);
+				f.render_widget(heading, Rect { x: size.x, y: size.y, width: size.width, height:1 });
+				size.height -= 1;
+				size.y += 1;
+			}
 			let chart = Chart::new(datasets)
-				.block(block(&app, args.sample_rate as f32, framerate))
 				.x_axis(axis(&app, Dimension::X)) // TODO allow to have axis sometimes?
 				.y_axis(axis(&app, Dimension::Y));
 			f.render_widget(chart, size)
@@ -276,8 +301,10 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 						KeyCode::Char('s') => app.set_scatter(!app.scatter()), // TODO no funcs
 						KeyCode::Char('h') => app.cfg.references = !app.cfg.references,
 						KeyCode::Char('t') => app.cfg.triggering = !app.cfg.triggering,
-						KeyCode::Up        => {},
-						KeyCode::Down      => {},
+						KeyCode::Up        => app.cfg.threshold += 100.0,
+						KeyCode::Down      => app.cfg.threshold -= 100.0,
+						KeyCode::PageUp    => app.cfg.threshold += 1000.0,
+						KeyCode::PageDown  => app.cfg.threshold -= 1000.0,
 						_ => {},
 					}
 				}
@@ -322,24 +349,4 @@ fn axis(app: &App, dim: Dimension) -> Axis {
 	}
 	a.style(Style::default().fg(app.cfg.axis_color))
 		.bounds(app.bounds(&dim))
-}
-
-fn block(app: &App, sample_rate: f32, framerate: u32) -> Block {
-	let mut b = Block::default();
-
-	if app.cfg.references {
-		b = b.title(
-			Span::styled(
-				format!(
-					"TUI {}  --  {}{} mode  --  range  {}  --  {} samples  --  {:.1} kHz  --  {} fps",
-					if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" },
-					if app.cfg.triggering { "triggered " } else { "" },
-					if app.scatter() { "scatter" } else { "line" },
-					app.cfg.scale, app.cfg.width, sample_rate / 1000.0, framerate,
-				),
-			Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow))
-		).title_alignment(Alignment::Center);
-	}
-
-	b
 }
