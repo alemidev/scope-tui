@@ -262,15 +262,15 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 								Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
 								Cell::from(format!("{}{} mode", if app.cfg.triggering { "triggered " } else { "" }, if app.scatter() { "scatter" } else { "line" })),
 								Cell::from(format!("range +-{}", app.cfg.scale)),
-								Cell::from(format!("{} smpl", samples as u32)),
-								Cell::from(format!("{:.1} kHz", args.sample_rate as f32 / 1000.0)),
-								Cell::from(format!("{} fps", framerate)),
+								Cell::from(format!("{}smpl", samples as u32)),
+								Cell::from(format!("{:.1}kHz", args.sample_rate as f32 / 1000.0)),
+								Cell::from(format!("{}fps", framerate)),
 							]
 						)
 					]
 				)
 				.style(Style::default().fg(Color::Cyan))
-				.widths(&[Constraint::Length(50), Constraint::Length(25), Constraint::Length(15), Constraint::Length(10), Constraint::Length(10), Constraint::Length(10)]);
+				.widths(&[Constraint::Percentage(40), Constraint::Percentage(20), Constraint::Percentage(20), Constraint::Percentage(7), Constraint::Percentage(7), Constraint::Percentage(6)]);
 				f.render_widget(heading, Rect { x: size.x, y: size.y, width: size.width, height:1 });
 				size.height -= 1;
 				size.y += 1;
