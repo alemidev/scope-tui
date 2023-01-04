@@ -1,4 +1,4 @@
-use tui::{style::Color, widgets::GraphType, symbols};
+use tui::style::Color;
 
 // use crate::parser::SampleParser;
 
@@ -39,18 +39,18 @@ impl Default for ChartReferences {
 }
 
 pub struct AppConfig {
-	pub title: String,
 	pub axis_color: Color,
 	pub palette: Vec<Color>,
 
-	pub scale: u32,
+	pub scale: i32,
 	pub width: u32,
 	pub vectorscope: bool,
 	pub references: bool,
+	pub show_ui: bool,
 
 	pub triggering: bool,
 	pub threshold: f64,
 
-	pub marker_type: symbols::Marker,
-	pub graph_type: GraphType,
+	pub scatter: bool,
+	pub braille: bool,
 }

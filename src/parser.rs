@@ -8,14 +8,15 @@
 // }
 
 pub trait SampleParser {
-	fn oscilloscope(&self, data: &mut [u8], channels: u32) -> Vec<Vec<f64>>;
+	fn oscilloscope(&self, data: &mut [u8], channels: u8) -> Vec<Vec<f64>>;
+	fn sample_size(&self) -> usize;
 }
 
 pub struct Signed16PCM {}
 
 /// TODO these are kinda inefficient, can they be faster?
 impl SampleParser for Signed16PCM {
-	fn oscilloscope(&self, data: &mut [u8], channels: u32) -> Vec<Vec<f64>> {
+	fn oscilloscope(&self, data: &mut [u8], channels: u8) -> Vec<Vec<f64>> {
 		let mut out = vec![vec![]; channels as usize];
 		let mut channel = 0;
 		for chunk in data.chunks(2) {
@@ -24,5 +25,9 @@ impl SampleParser for Signed16PCM {
 			channel = (channel + 1 ) % channels as usize;
 		}
 		out
+	}
+
+	fn sample_size(&self) -> usize {
+		return 2; // 16 bit, thus 2 bytes
 	}
 }

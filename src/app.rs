@@ -26,6 +26,12 @@ pub struct App {
 
 impl App {
 	pub fn update_values(&mut self) {
+		if self.cfg.scale > 32768 {
+			self.cfg.scale = 32768;
+		}
+		if self.cfg.scale < 0 {
+			self.cfg.scale = 0;
+		}
 		if self.cfg.vectorscope {
 			self.names.x = "left -".into();
 			self.names.y = "| right".into();
@@ -44,72 +50,41 @@ impl App {
 		}
 	}
 
-	pub fn bounds(&self, axis: &Dimension) -> [f64;2] {
-		match axis {
-			Dimension::X => self.bounds.x,
-			Dimension::Y => self.bounds.y,
+	pub fn marker_type(&self) -> symbols::Marker {
+		if self.cfg.braille {
+			symbols::Marker::Braille
+		} else {
+			symbols::Marker::Dot
 		}
 	}
 
-	pub fn name(&self, axis: &Dimension) -> &str {
-		match axis {
-			Dimension::X => self.names.x.as_str(),
-			Dimension::Y => self.names.y.as_str(),
+	pub fn graph_type(&self) -> GraphType {
+		if self.cfg.scatter {
+			GraphType::Scatter
+		} else {
+			GraphType::Line
 		}
 	}
 
-	pub fn scatter(&self) -> bool {
-		match self.cfg.graph_type {
-			GraphType::Scatter => true,
-			_ => false,
-		}
-	}
-
-	// pub fn references(&self) -> Vec<Dataset> {
-	// 	vec![
-	// 		Dataset::default()
-	// 			.name("")
-	// 			.marker(self.cfg.marker_type)
-	// 			.graph_type(GraphType::Line)
-	// 			.style(Style::default().fg(self.cfg.axis_color))
-	// 			.data(&self.references.x),
-	// 		Dataset::default()
-	// 			.name("")
-	// 			.marker(self.cfg.marker_type)
-	// 			.graph_type(GraphType::Line)
-	// 			.style(Style::default().fg(self.cfg.axis_color))
-	// 			.data(&self.references.y),
-	// 	]
-	// }
-
-	pub fn update_scale(&mut self, increment: i32) {
-		if increment > 0 || increment.abs() < self.cfg.scale as i32 {
-			self.cfg.scale = ((self.cfg.scale as i32) + increment) as u32;
-			self.update_values();
-		}
-	}
-
-	pub fn set_scatter(&mut self, scatter: bool) {
-		self.cfg.graph_type = if scatter { GraphType::Scatter } else { GraphType::Line };
+	pub fn palette(&self, index: usize) -> Color {
+		*self.cfg.palette.get(index % self.cfg.palette.len()).unwrap_or(&Color::White)
 	}
 }
 
 impl From::<&crate::Args> for App {
 	fn from(args: &crate::Args) -> Self {
-		let marker_type = if args.no_braille { symbols::Marker::Dot } else { symbols::Marker::Braille };
-		let graph_type  = if args.scatter    { GraphType::Scatter   } else { GraphType::Line          };
-
 		let cfg = AppConfig {
-			title: "TUI Oscilloscope  --  <me@alemi.dev>".into(),
 			axis_color: Color::DarkGray,
-			palette: vec![Color::Red, Color::Yellow],
+			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
 			scale: args.range,
-			width: args.buffer / 4, // TODO It's 4 because 2 channels and 2 bytes per sample!
+			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
 			triggering: args.triggering,
 			threshold: args.threshold,
 			vectorscope: args.vectorscope,
 			references: !args.no_reference,
-			marker_type, graph_type,
+			show_ui: !args.no_ui,
+			braille: !args.no_braille,
+			scatter: args.scatter,
 		};
 
 		let mut app = App {
@@ -136,7 +111,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 	// setup audio capture
 	let spec = Spec {
 		format: Format::S16NE,
-		channels: 2,
+		channels: args.channels,
 		rate: args.sample_rate,
 	};
 	assert!(spec.is_valid());
@@ -151,7 +126,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 		"ScopeTUI",          // Our application’s name
 		Direction::Record,   // We want a record stream
 		dev,                 // Use requested device, or default
-		"Music",             // Description of our stream
+		"data",              // Description of our stream
 		&spec,               // Our sample format
 		None,                // Use default channel map
 		Some(&BufferAttr {
@@ -182,66 +157,79 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 		}
 
 		if !pause {
-			channels = fmt.oscilloscope(&mut buffer, 2);
-		}
+			channels = fmt.oscilloscope(&mut buffer, args.channels);
 
-		if app.cfg.triggering {
-			// TODO allow to customize channel to use for triggering and threshold
-			if let Some(ch) = channels.get(0) {
-				let mut discard = 0;
-				for i in 0..ch.len() { // seek to first sample rising through threshold
-					if i + 1 < ch.len() && ch[i] <= app.cfg.threshold && ch[i+1] > app.cfg.threshold { // triggered
-						break;
-					} else {
-						discard += 1;
+			if app.cfg.triggering {
+				// TODO allow to customize channel to use for triggering
+				if let Some(ch) = channels.get(0) {
+					let mut discard = 0;
+					for i in 0..ch.len()-1 { // seek to first sample rising through threshold
+						if ch[i] <= app.cfg.threshold && ch[i+1] > app.cfg.threshold { // triggered
+							break;
+						} else {
+							discard += 1;
+						}
 					}
-				}
-				for ch in channels.iter_mut() {
-					*ch = ch[discard..].to_vec();
+					for ch in channels.iter_mut() {
+						let limit = if ch.len() < discard { ch.len() } else { discard };
+						*ch = ch[limit..].to_vec();
+					}
 				}
 			}
 		}
 
 		let samples = channels.iter().map(|x| x.len()).max().unwrap_or(0);
 
-		let mut measures;
+		let mut measures : Vec<(String, Vec<(f64, f64)>)>;
 
+		// This third buffer is kinda weird because of lifetimes on Datasets, TODO
+		//  would be nice to make it more straight forward instead of this deep tuple magic
 		if app.cfg.vectorscope {
 			measures = vec![];
-			for chunk in channels.chunks(2) {
+			for (i, chunk) in channels.chunks(2).enumerate() {
 				let mut tmp = vec![];
-				for i in 0..chunk[0].len() {
-					tmp.push((chunk[0][i] as f64, chunk[1][i] as f64));
+				match chunk.len() {
+					2 => {
+						for i in 0..std::cmp::min(chunk[0].len(), chunk[0].len()) {
+							tmp.push((chunk[0][i] as f64, chunk[1][i] as f64));
+						}
+					},
+					1 => {
+						for i in 0..chunk[0].len() {
+							tmp.push((chunk[0][i] as f64, i as f64));
+						}
+					},
+					_ => continue,
 				}
 				// split it in two so the math downwards still works the same
 				let pivot = tmp.len() / 2;
-				measures.push(tmp[pivot..].to_vec()); // put more recent first
-				measures.push(tmp[..pivot].to_vec());
+				measures.push((channel_name(i * 2, true), tmp[pivot..].to_vec())); // put more recent first
+				measures.push((channel_name((i * 2) + 1, true), tmp[..pivot].to_vec()));
 			}
 		} else {
-			measures = vec![vec![]; channels.len()];
-			for i in 0..channels[0].len() {
-				for j in 0..channels.len() {
-					measures[j].push((i as f64, channels[j][i]));
+			measures = vec![];
+			for (i, channel) in channels.iter().enumerate() {
+				let mut tmp = vec![];
+				for i in 0..channel.len() {
+					tmp.push((i as f64, channel[i]));
 				}
+				measures.push((channel_name(i, false), tmp));
 			}
 		}
 
 		let mut datasets = vec![];
-		let trigger_pt;
 
 		if app.cfg.references {
-			trigger_pt = [(0.0, app.cfg.threshold)];
-			datasets.push(data_set("", &app.references.x, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
-			datasets.push(data_set("", &app.references.y, app.cfg.marker_type, GraphType::Line, app.cfg.axis_color));
-			datasets.push(data_set("T", &trigger_pt, app.cfg.marker_type, GraphType::Scatter, Color::Cyan));
+			datasets.push(data_set("", &app.references.x, app.marker_type(), GraphType::Line, app.cfg.axis_color));
+			datasets.push(data_set("", &app.references.y, app.marker_type(), GraphType::Line, app.cfg.axis_color));
 		}
 
-		let ds_names = if app.cfg.vectorscope { vec!["1", "2"] } else { vec!["R", "L"] };
-		let palette : Vec<Color> = app.cfg.palette.iter().rev().map(|x| x.clone()).collect();
+		let trigger_pt = [(0.0, app.cfg.threshold)];
+		datasets.push(data_set("T", &trigger_pt, app.marker_type(), GraphType::Scatter, Color::Cyan));
 
-		for (i, ds) in measures.iter().rev().enumerate() {
-			datasets.push(data_set(ds_names[i], ds, app.cfg.marker_type, app.cfg.graph_type, palette[i % palette.len()]));
+		let m_len = measures.len() - 1;
+		for (i, (name, ds)) in measures.iter().rev().enumerate() {
+			datasets.push(data_set(&name, ds, app.marker_type(), app.graph_type(), app.palette(m_len - i)));
 		}
 
 		fps += 1;
@@ -254,23 +242,8 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 
 		terminal.draw(|f| {
 			let mut size = f.size();
-			if app.cfg.references {
-				let heading = Table::new(
-					vec![
-						Row::new(
-							vec![
-								Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-								Cell::from(format!("{}{} mode", if app.cfg.triggering { "triggered " } else { "" }, if app.scatter() { "scatter" } else { "line" })),
-								Cell::from(format!("range +-{}", app.cfg.scale)),
-								Cell::from(format!("{}smpl", samples as u32)),
-								Cell::from(format!("{:.1}kHz", args.sample_rate as f32 / 1000.0)),
-								Cell::from(format!("{}fps", framerate)),
-							]
-						)
-					]
-				)
-				.style(Style::default().fg(Color::Cyan))
-				.widths(&[Constraint::Percentage(40), Constraint::Percentage(20), Constraint::Percentage(20), Constraint::Percentage(7), Constraint::Percentage(7), Constraint::Percentage(6)]);
+			if app.cfg.show_ui {
+				let heading = header(&args, &app, samples as u32, framerate);
 				f.render_widget(heading, Rect { x: size.x, y: size.y, width: size.width, height:1 });
 				size.height -= 1;
 				size.y += 1;
@@ -283,9 +256,31 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 
 		if let Some(Event::Key(key)) = poll_event()? {
 			match key.modifiers {
-				KeyModifiers::CONTROL => {
+				KeyModifiers::SHIFT => {
 					match key.code {
+						KeyCode::Up   => app.cfg.threshold += 1000.0,
+						KeyCode::Down => app.cfg.threshold -= 1000.0,
+						KeyCode::Right => app.cfg.scale     += 1000,
+						KeyCode::Left  => app.cfg.scale     -= 1000,
+						_ => {},
+					}
+				},
+				KeyModifiers::CONTROL => {
+					match key.code { // mimic other programs shortcuts to quit, for user friendlyness
 						KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => break,
+						KeyCode::Up   => app.cfg.threshold += 10.0,
+						KeyCode::Down => app.cfg.threshold -= 10.0,
+						KeyCode::Right => app.cfg.scale     += 10,
+						KeyCode::Left  => app.cfg.scale     -= 10,
+						_ => {},
+					}
+				},
+				KeyModifiers::ALT => {
+					match key.code {
+						KeyCode::Up   => app.cfg.threshold += 1.0,
+						KeyCode::Down => app.cfg.threshold -= 1.0,
+						KeyCode::Right => app.cfg.scale     += 1,
+						KeyCode::Left  => app.cfg.scale     -= 1,
 						_ => {},
 					}
 				},
@@ -293,18 +288,25 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 					match key.code {
 						KeyCode::Char('q') => break,
 						KeyCode::Char(' ') => pause = !pause,
-						KeyCode::Char('=') => app.update_scale(-1000),
-						KeyCode::Char('-') => app.update_scale(1000),
-						KeyCode::Char('+') => app.update_scale(-100),
-						KeyCode::Char('_') => app.update_scale(100),
 						KeyCode::Char('v') => app.cfg.vectorscope = !app.cfg.vectorscope,
-						KeyCode::Char('s') => app.set_scatter(!app.scatter()), // TODO no funcs
-						KeyCode::Char('h') => app.cfg.references = !app.cfg.references,
-						KeyCode::Char('t') => app.cfg.triggering = !app.cfg.triggering,
-						KeyCode::Up        => app.cfg.threshold += 100.0,
-						KeyCode::Down      => app.cfg.threshold -= 100.0,
-						KeyCode::PageUp    => app.cfg.threshold += 1000.0,
-						KeyCode::PageDown  => app.cfg.threshold -= 1000.0,
+						KeyCode::Char('s') => app.cfg.scatter     = !app.cfg.scatter,
+						KeyCode::Char('b') => app.cfg.braille     = !app.cfg.braille,
+						KeyCode::Char('h') => app.cfg.show_ui     = !app.cfg.show_ui,
+						KeyCode::Char('r') => app.cfg.references  = !app.cfg.references,
+						KeyCode::Char('t') => app.cfg.triggering  = !app.cfg.triggering,
+						KeyCode::Up    => app.cfg.threshold += 100.0,
+						KeyCode::Down  => app.cfg.threshold -= 100.0,
+						KeyCode::Right => app.cfg.scale     += 100,
+						KeyCode::Left  => app.cfg.scale     -= 100,
+						KeyCode::Esc       => { // reset settings
+							app.cfg.references  = !args.no_reference;
+							app.cfg.braille     = !args.no_braille;
+							app.cfg.threshold   = args.threshold;
+							app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
+							app.cfg.scale       = args.range;
+							app.cfg.vectorscope = args.vectorscope;
+							app.cfg.triggering  = args.triggering;
+						},
 						_ => {},
 					}
 				}
@@ -316,8 +318,37 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 	Ok(())
 }
 
-
 // TODO these functions probably shouldn't be here
+
+fn header(args: &Args, app: &App, samples: u32, framerate: u32) -> Table<'static> {
+	Table::new(
+		vec![
+			Row::new(
+				vec![
+					Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+					Cell::from(format!("{} plot", if app.cfg.scatter { "scatter" } else { "line" })),
+					Cell::from(format!("{}", if app.cfg.triggering { "triggered" } else { "live" } )),
+					Cell::from(format!("threshold {:.0}", app.cfg.threshold)),
+					Cell::from(format!("range +-{}", app.cfg.scale)),
+					Cell::from(format!("{}smpl", samples as u32)),
+					Cell::from(format!("{:.1}kHz", args.sample_rate as f32 / 1000.0)),
+					Cell::from(format!("{}fps", framerate)),
+				]
+			)
+		]
+	)
+	.style(Style::default().fg(Color::Cyan))
+	.widths(&[
+		Constraint::Percentage(32),
+		Constraint::Percentage(12),
+		Constraint::Percentage(12),
+		Constraint::Percentage(12),
+		Constraint::Percentage(12),
+		Constraint::Percentage(6),
+		Constraint::Percentage(6),
+		Constraint::Percentage(6)
+	])
+}
 
 fn poll_event() -> Result<Option<Event>, std::io::Error> {
 	if event::poll(Duration::from_millis(0))? {
@@ -343,10 +374,22 @@ fn data_set<'a>(
 }
 
 fn axis(app: &App, dim: Dimension) -> Axis {
+	let (name, bounds) = match dim {
+		Dimension::X => (&app.names.x, &app.bounds.x),
+		Dimension::Y => (&app.names.y, &app.bounds.y),
+	};
 	let mut a = Axis::default();
-	if app.cfg.references {
-		a = a.title(Span::styled(app.name(&dim), Style::default().fg(Color::Cyan)));
+	if app.cfg.show_ui {
+		a = a.title(Span::styled(name, Style::default().fg(Color::Cyan)));
 	}
-	a.style(Style::default().fg(app.cfg.axis_color))
-		.bounds(app.bounds(&dim))
+	a.style(Style::default().fg(app.cfg.axis_color)).bounds(*bounds)
+}
+
+fn channel_name(index: usize, vectorscope: bool) -> String {
+	if vectorscope { return format!("{}", index); }
+	match index {
+		0 => "L".into(),
+		1 => "R".into(),
+		_ => format!("{}", index),
+	}
 }

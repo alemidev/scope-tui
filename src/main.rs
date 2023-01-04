@@ -17,9 +17,18 @@ use clap::Parser;
 use crate::music::Note;
 use crate::app::run_app;
 
+const HELP_TEMPLATE : &str = "{before-help}\
+{name} {version} -- by {author}
+{about}
+
+{usage-heading} {usage}
+
+{all-args}{after-help}
+";
+
 /// A simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, help_template = HELP_TEMPLATE)]
 pub struct Args {
 	/// Audio device to attach to
 	device: Option<String>,
@@ -30,7 +39,7 @@ pub struct Args {
 
 	/// Max value, positive and negative, on amplitude scale
 	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
-	range: u32, // TODO counterintuitive, improve this
+	range: i32, // TODO counterintuitive, improve this
 
 	/// Use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
@@ -43,6 +52,10 @@ pub struct Args {
 	/// Tune buffer size to be in tune with given note (overrides buffer option)
 	#[arg(long, value_name = "NOTE")]
 	tune: Option<String>,
+
+	/// Number of channels to open
+	#[arg(long, value_name = "N", default_value_t = 2)]
+	channels: u8,
 
 	/// Sample rate to use
 	#[arg(long, value_name = "HZ", default_value_t = 44100)]
@@ -64,6 +77,10 @@ pub struct Args {
 	#[arg(long, default_value_t = false)]
 	no_reference: bool,
 
+	/// Hide UI and only draw waveforms
+	#[arg(long, default_value_t = false)]
+	no_ui: bool,
+
 	/// Don't use braille dots for drawing lines
 	#[arg(long, default_value_t = false)]
 	no_braille: bool,
@@ -75,7 +92,7 @@ fn main() -> Result<(), std::io::Error> {
 	if let Some(txt) = &args.tune { // TODO make it less jank
 		if let Ok(note) = txt.parse::<Note>() {
 			args.buffer = note.tune_buffer_size(args.sample_rate);
-			while args.buffer % 4 != 0 {
+			while args.buffer % (args.channels as u32 * 2) != 0 { // TODO customizable bit depth
 				args.buffer += 1; // TODO jank but otherwise it doesn't align
 			}
 		} else {
