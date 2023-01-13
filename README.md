@@ -42,18 +42,21 @@ To change audio buffer size, the PulseAudio client must be restarted. Because of
 
 ## Controls
 * Use `q` or `CTRL+C` to exit
+* Use `t` to toggle triggered mode
 * Use `<SPACE>` to pause and resume display
-* Use `<LEFT>` and `<RIGHT>` to decrease or increase range by 100
-* Use `<UP>` and `<DOWN>` to decrease or increase threshold by 100
-  * Combine arrows with `<SHIFT>` to increase or decrease by 1000 instead
-  * Combine arrows with `<CTRL>` to increase or decrease by 10 instead
-  * Combine arrows with `<ALT>` to increase or decrease by 1 instead
+* Use `<LEFT>` and `<RIGHT>` to increase or decrease time range by 25
+* Use `<UP>` and `<DOWN>` to increase or decrease amplitude scale by 250
+* Use `<PG-UP>` and `<PG-DOWN>` to increase or decrease threshold by 250
+  * Combine arrows with `<SHIFT>` to increase or decrease by x4
+  * Combine arrows with `<CTRL>` to increase or decrease by /5
+  * Press `<TAB>` to restore width and scale to default values
 * Use `v` to toggle vectorscope mode
 * Use `s` to toggle scatter mode
 * Use `b` to toggle braille characters
 * Use `h` to toggle interface
 * Use `r` to toggle reference lines
-* Use `t` to toggle triggered mode
+* Use `<ESC>` to show ui and revert to oscilloscope
+* Use `<C-R>` to reset all options to startup values
 
 # About precision
 While "scatter" plot mode is as precise as Pulseaudio and the terminal lets us be, "line" plot mode simply draws a straight line across points, meaning high frequencies don't get properly represented.

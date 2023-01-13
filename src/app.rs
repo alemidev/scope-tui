@@ -270,12 +270,12 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 				KeyModifiers::CONTROL => {
 					match key.code { // mimic other programs shortcuts to quit, for user friendlyness
 						KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => break,
-						KeyCode::Up       => app.cfg.scale     -= 10, // inverted to act as zoom
-						KeyCode::Down     => app.cfg.scale     += 10, // inverted to act as zoom
-						KeyCode::Right    => app.cfg.width     += 1,
-						KeyCode::Left     => app.cfg.width     -= 1,
-						KeyCode::PageUp   => app.cfg.threshold += 10.0,
-						KeyCode::PageDown => app.cfg.threshold -= 10.0,
+						KeyCode::Up       => app.cfg.scale     -= 50, // inverted to act as zoom
+						KeyCode::Down     => app.cfg.scale     += 50, // inverted to act as zoom
+						KeyCode::Right    => app.cfg.width     += 5,
+						KeyCode::Left     => app.cfg.width     -= 5,
+						KeyCode::PageUp   => app.cfg.threshold += 50.0,
+						KeyCode::PageDown => app.cfg.threshold -= 50.0,
 						KeyCode::Char('r') => { // reset settings
 							app.cfg.references  = !args.no_reference;
 							app.cfg.show_ui     = !args.no_ui;
