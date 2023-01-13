@@ -26,8 +26,8 @@ pub struct App {
 
 impl App {
 	pub fn update_values(&mut self) {
-		if self.cfg.scale > 32768 {
-			self.cfg.scale = 32768;
+		if self.cfg.scale > 32770 { // sample max value is 32768 (32 bits), but we leave 2 pixels for
+			self.cfg.scale = 32770; //  padding (and to not "disaling" range when reaching limit)
 		}
 		if self.cfg.scale < 0 {
 			self.cfg.scale = 0;
@@ -123,7 +123,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 
 	let s = match Simple::new(
 		None,                // Use the default server
-		"ScopeTUI",          // Our application’s name
+		"scope-tui",         // Our application’s name
 		Direction::Record,   // We want a record stream
 		dev,                 // Use requested device, or default
 		"data",              // Description of our stream
@@ -243,7 +243,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 		terminal.draw(|f| {
 			let mut size = f.size();
 			if app.cfg.show_ui {
-				let heading = header(&args, &app, samples as u32, framerate);
+				let heading = header(&app, samples as u32, framerate);
 				f.render_widget(heading, Rect { x: size.x, y: size.y, width: size.width, height:1 });
 				size.height -= 1;
 				size.y += 1;
@@ -258,29 +258,34 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			match key.modifiers {
 				KeyModifiers::SHIFT => {
 					match key.code {
-						KeyCode::Up   => app.cfg.threshold += 1000.0,
-						KeyCode::Down => app.cfg.threshold -= 1000.0,
-						KeyCode::Right => app.cfg.scale     += 1000,
-						KeyCode::Left  => app.cfg.scale     -= 1000,
+						KeyCode::Up       => app.cfg.scale     -= 1000, // inverted to act as zoom
+						KeyCode::Down     => app.cfg.scale     += 1000, // inverted to act as zoom
+						KeyCode::Right    => app.cfg.width     += 100,
+						KeyCode::Left     => app.cfg.width     -= 100,
+						KeyCode::PageUp   => app.cfg.threshold += 1000.0,
+						KeyCode::PageDown => app.cfg.threshold -= 1000.0,
 						_ => {},
 					}
 				},
 				KeyModifiers::CONTROL => {
 					match key.code { // mimic other programs shortcuts to quit, for user friendlyness
 						KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => break,
-						KeyCode::Up   => app.cfg.threshold += 10.0,
-						KeyCode::Down => app.cfg.threshold -= 10.0,
-						KeyCode::Right => app.cfg.scale     += 10,
-						KeyCode::Left  => app.cfg.scale     -= 10,
-						_ => {},
-					}
-				},
-				KeyModifiers::ALT => {
-					match key.code {
-						KeyCode::Up   => app.cfg.threshold += 1.0,
-						KeyCode::Down => app.cfg.threshold -= 1.0,
-						KeyCode::Right => app.cfg.scale     += 1,
-						KeyCode::Left  => app.cfg.scale     -= 1,
+						KeyCode::Up       => app.cfg.scale     -= 10, // inverted to act as zoom
+						KeyCode::Down     => app.cfg.scale     += 10, // inverted to act as zoom
+						KeyCode::Right    => app.cfg.width     += 1,
+						KeyCode::Left     => app.cfg.width     -= 1,
+						KeyCode::PageUp   => app.cfg.threshold += 10.0,
+						KeyCode::PageDown => app.cfg.threshold -= 10.0,
+						KeyCode::Char('r') => { // reset settings
+							app.cfg.references  = !args.no_reference;
+							app.cfg.show_ui     = !args.no_ui;
+							app.cfg.braille     = !args.no_braille;
+							app.cfg.threshold   = args.threshold;
+							app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
+							app.cfg.scale       = args.range;
+							app.cfg.vectorscope = args.vectorscope;
+							app.cfg.triggering  = args.triggering;
+						},
 						_ => {},
 					}
 				},
@@ -294,18 +299,20 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 						KeyCode::Char('h') => app.cfg.show_ui     = !app.cfg.show_ui,
 						KeyCode::Char('r') => app.cfg.references  = !app.cfg.references,
 						KeyCode::Char('t') => app.cfg.triggering  = !app.cfg.triggering,
-						KeyCode::Up    => app.cfg.threshold += 100.0,
-						KeyCode::Down  => app.cfg.threshold -= 100.0,
-						KeyCode::Right => app.cfg.scale     += 100,
-						KeyCode::Left  => app.cfg.scale     -= 100,
-						KeyCode::Esc       => { // reset settings
-							app.cfg.references  = !args.no_reference;
-							app.cfg.braille     = !args.no_braille;
-							app.cfg.threshold   = args.threshold;
+						KeyCode::Up       => app.cfg.scale     -= 250, // inverted to act as zoom
+						KeyCode::Down     => app.cfg.scale     += 250, // inverted to act as zoom
+						KeyCode::Right    => app.cfg.width     += 25,
+						KeyCode::Left     => app.cfg.width     -= 25,
+						KeyCode::PageUp   => app.cfg.threshold += 250.0,
+						KeyCode::PageDown => app.cfg.threshold -= 250.0,
+						KeyCode::Tab => { // only reset "zoom"
 							app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
 							app.cfg.scale       = args.range;
+						},
+						KeyCode::Esc      => { // back to oscilloscope
+							app.cfg.references  = !args.no_reference;
+							app.cfg.show_ui     = !args.no_ui;
 							app.cfg.vectorscope = args.vectorscope;
-							app.cfg.triggering  = args.triggering;
 						},
 						_ => {},
 					}
@@ -320,7 +327,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 
 // TODO these functions probably shouldn't be here
 
-fn header(args: &Args, app: &App, samples: u32, framerate: u32) -> Table<'static> {
+fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
 	Table::new(
 		vec![
 			Row::new(
@@ -328,10 +335,9 @@ fn header(args: &Args, app: &App, samples: u32, framerate: u32) -> Table<'static
 					Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
 					Cell::from(format!("{} plot", if app.cfg.scatter { "scatter" } else { "line" })),
 					Cell::from(format!("{}", if app.cfg.triggering { "triggered" } else { "live" } )),
-					Cell::from(format!("threshold {:.0}", app.cfg.threshold)),
-					Cell::from(format!("range +-{}", app.cfg.scale)),
-					Cell::from(format!("{}smpl", samples as u32)),
-					Cell::from(format!("{:.1}kHz", args.sample_rate as f32 / 1000.0)),
+					Cell::from(format!("threshold {:.0} ^", app.cfg.threshold)),
+					Cell::from(format!("range +{}-", app.cfg.scale)),
+					Cell::from(format!("{}/{} samples", samples as u32, app.cfg.width)),
 					Cell::from(format!("{}fps", framerate)),
 				]
 			)
@@ -344,8 +350,7 @@ fn header(args: &Args, app: &App, samples: u32, framerate: u32) -> Table<'static
 		Constraint::Percentage(12),
 		Constraint::Percentage(12),
 		Constraint::Percentage(12),
-		Constraint::Percentage(6),
-		Constraint::Percentage(6),
+		Constraint::Percentage(12),
 		Constraint::Percentage(6)
 	])
 }

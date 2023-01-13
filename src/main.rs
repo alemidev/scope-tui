@@ -70,7 +70,7 @@ pub struct Args {
 	triggering: bool,
 
 	/// Threshold value for triggering
-	#[arg(long, default_value_t = 0.0)]
+	#[arg(long, value_name = "VAL", default_value_t = 0.0)]
 	threshold: f64,
 
 	/// Don't draw reference line
