@@ -53,4 +53,6 @@ pub struct AppConfig {
 
 	pub scatter: bool,
 	pub braille: bool,
+
+	pub pause: bool,
 }

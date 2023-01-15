@@ -12,101 +12,15 @@ use libpulse_simple_binding::Simple;
 use libpulse_binding::{stream::Direction, def::BufferAttr};
 use libpulse_binding::sample::{Spec, Format};
 
-
 use crate::Args;
 use crate::config::{ChartNames, ChartBounds, ChartReferences, AppConfig, Dimension};
 use crate::parser::{SampleParser, Signed16PCM};
-
-pub struct App {
-	pub cfg: AppConfig,
-	pub references: ChartReferences,
-	pub bounds: ChartBounds,
-	pub names: ChartNames,
-}
-
-impl App {
-	pub fn update_values(&mut self) {
-		if self.cfg.scale > 32770 { // sample max value is 32768 (32 bits), but we leave 2 pixels for
-			self.cfg.scale = 32770; //  padding (and to not "disaling" range when reaching limit)
-		}
-		if self.cfg.scale < 0 {
-			self.cfg.scale = 0;
-		}
-		if self.cfg.vectorscope {
-			self.names.x = "left -".into();
-			self.names.y = "| right".into();
-			self.bounds.x = [-(self.cfg.scale as f64), self.cfg.scale as f64];
-			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
-			self.references.x = vec![(-(self.cfg.scale as f64), 0.0), (self.cfg.scale as f64, 0.0)];
-			self.references.y = vec![(0.0, -(self.cfg.scale as f64)), (0.0, self.cfg.scale as f64)];
-		} else {
-			self.names.x = "time -".into();
-			self.names.y = "| amplitude".into();
-			self.bounds.x = [0.0, self.cfg.width as f64];
-			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
-			self.references.x = vec![(0.0, 0.0), (self.cfg.width as f64, 0.0)];
-			let half_width = self.cfg.width as f64 / 2.0;
-			self.references.y = vec![(half_width, -(self.cfg.scale as f64)), (half_width, self.cfg.scale as f64)];
-		}
-	}
-
-	pub fn marker_type(&self) -> symbols::Marker {
-		if self.cfg.braille {
-			symbols::Marker::Braille
-		} else {
-			symbols::Marker::Dot
-		}
-	}
-
-	pub fn graph_type(&self) -> GraphType {
-		if self.cfg.scatter {
-			GraphType::Scatter
-		} else {
-			GraphType::Line
-		}
-	}
-
-	pub fn palette(&self, index: usize) -> Color {
-		*self.cfg.palette.get(index % self.cfg.palette.len()).unwrap_or(&Color::White)
-	}
-}
-
-impl From::<&crate::Args> for App {
-	fn from(args: &crate::Args) -> Self {
-		let cfg = AppConfig {
-			axis_color: Color::DarkGray,
-			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
-			scale: args.range,
-			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
-			triggering: args.triggering,
-			threshold: args.threshold,
-			vectorscope: args.vectorscope,
-			references: !args.no_reference,
-			show_ui: !args.no_ui,
-			braille: !args.no_braille,
-			scatter: args.scatter,
-		};
-
-		let mut app = App {
-			cfg,
-			references: ChartReferences::default(),
-			bounds: ChartBounds::default(),
-			names: ChartNames::default(),
-		};
-
-		app.update_values();
-
-		app
-	}
-}
 
 pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 	// prepare globals
 	let mut buffer : Vec<u8> = vec![0; args.buffer as usize];
 	let mut app = App::from(&args);
 	let fmt = Signed16PCM{}; // TODO some way to choose this?
-
-	let mut pause = false;
 
 	// setup audio capture
 	let spec = Spec {
@@ -156,7 +70,7 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			},
 		}
 
-		if !pause {
+		if !app.cfg.pause {
 			channels = fmt.oscilloscope(&mut buffer, args.channels);
 
 			if app.cfg.triggering {
@@ -254,77 +168,97 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			f.render_widget(chart, size)
 		})?;
 
-		if let Some(Event::Key(key)) = poll_event()? {
-			match key.modifiers {
-				KeyModifiers::SHIFT => {
-					match key.code {
-						KeyCode::Up       => app.cfg.scale     -= 1000, // inverted to act as zoom
-						KeyCode::Down     => app.cfg.scale     += 1000, // inverted to act as zoom
-						KeyCode::Right    => app.cfg.width     += 100,
-						KeyCode::Left     => app.cfg.width     -= 100,
-						KeyCode::PageUp   => app.cfg.threshold += 1000.0,
-						KeyCode::PageDown => app.cfg.threshold -= 1000.0,
-						_ => {},
-					}
-				},
-				KeyModifiers::CONTROL => {
-					match key.code { // mimic other programs shortcuts to quit, for user friendlyness
-						KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => break,
-						KeyCode::Up       => app.cfg.scale     -= 50, // inverted to act as zoom
-						KeyCode::Down     => app.cfg.scale     += 50, // inverted to act as zoom
-						KeyCode::Right    => app.cfg.width     += 5,
-						KeyCode::Left     => app.cfg.width     -= 5,
-						KeyCode::PageUp   => app.cfg.threshold += 50.0,
-						KeyCode::PageDown => app.cfg.threshold -= 50.0,
-						KeyCode::Char('r') => { // reset settings
-							app.cfg.references  = !args.no_reference;
-							app.cfg.show_ui     = !args.no_ui;
-							app.cfg.braille     = !args.no_braille;
-							app.cfg.threshold   = args.threshold;
-							app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
-							app.cfg.scale       = args.range;
-							app.cfg.vectorscope = args.vectorscope;
-							app.cfg.triggering  = args.triggering;
-						},
-						_ => {},
-					}
-				},
-				_ => {
-					match key.code {
-						KeyCode::Char('q') => break,
-						KeyCode::Char(' ') => pause = !pause,
-						KeyCode::Char('v') => app.cfg.vectorscope = !app.cfg.vectorscope,
-						KeyCode::Char('s') => app.cfg.scatter     = !app.cfg.scatter,
-						KeyCode::Char('b') => app.cfg.braille     = !app.cfg.braille,
-						KeyCode::Char('h') => app.cfg.show_ui     = !app.cfg.show_ui,
-						KeyCode::Char('r') => app.cfg.references  = !app.cfg.references,
-						KeyCode::Char('t') => app.cfg.triggering  = !app.cfg.triggering,
-						KeyCode::Up       => app.cfg.scale     -= 250, // inverted to act as zoom
-						KeyCode::Down     => app.cfg.scale     += 250, // inverted to act as zoom
-						KeyCode::Right    => app.cfg.width     += 25,
-						KeyCode::Left     => app.cfg.width     -= 25,
-						KeyCode::PageUp   => app.cfg.threshold += 250.0,
-						KeyCode::PageDown => app.cfg.threshold -= 250.0,
-						KeyCode::Tab => { // only reset "zoom"
-							app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
-							app.cfg.scale       = args.range;
-						},
-						KeyCode::Esc      => { // back to oscilloscope
-							app.cfg.references  = !args.no_reference;
-							app.cfg.show_ui     = !args.no_ui;
-							app.cfg.vectorscope = args.vectorscope;
-						},
-						_ => {},
-					}
-				}
-			}
-			app.update_values();
+		if process_events(&mut app, &args)? {
+			break;
 		}
 	}
 
 	Ok(())
 }
 
+pub struct App {
+	pub cfg: AppConfig,
+	pub references: ChartReferences,
+	pub bounds: ChartBounds,
+	pub names: ChartNames,
+}
+
+impl App {
+	pub fn update_values(&mut self) {
+		if self.cfg.scale > 32770 { // sample max value is 32768 (32 bits), but we leave 2 pixels for
+			self.cfg.scale = 32770; //  padding (and to not "disaling" range when reaching limit)
+		}
+		if self.cfg.scale < 0 {
+			self.cfg.scale = 0;
+		}
+		if self.cfg.vectorscope {
+			self.names.x = "left -".into();
+			self.names.y = "| right".into();
+			self.bounds.x = [-(self.cfg.scale as f64), self.cfg.scale as f64];
+			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
+			self.references.x = vec![(-(self.cfg.scale as f64), 0.0), (self.cfg.scale as f64, 0.0)];
+			self.references.y = vec![(0.0, -(self.cfg.scale as f64)), (0.0, self.cfg.scale as f64)];
+		} else {
+			self.names.x = "time -".into();
+			self.names.y = "| amplitude".into();
+			self.bounds.x = [0.0, self.cfg.width as f64];
+			self.bounds.y = [-(self.cfg.scale as f64), self.cfg.scale as f64];
+			self.references.x = vec![(0.0, 0.0), (self.cfg.width as f64, 0.0)];
+			let half_width = self.cfg.width as f64 / 2.0;
+			self.references.y = vec![(half_width, -(self.cfg.scale as f64)), (half_width, self.cfg.scale as f64)];
+		}
+	}
+
+	pub fn marker_type(&self) -> symbols::Marker {
+		if self.cfg.braille {
+			symbols::Marker::Braille
+		} else {
+			symbols::Marker::Dot
+		}
+	}
+
+	pub fn graph_type(&self) -> GraphType {
+		if self.cfg.scatter {
+			GraphType::Scatter
+		} else {
+			GraphType::Line
+		}
+	}
+
+	pub fn palette(&self, index: usize) -> Color {
+		*self.cfg.palette.get(index % self.cfg.palette.len()).unwrap_or(&Color::White)
+	}
+}
+
+impl From::<&crate::Args> for App {
+	fn from(args: &crate::Args) -> Self {
+		let cfg = AppConfig {
+			axis_color: Color::DarkGray,
+			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
+			scale: args.range,
+			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
+			triggering: args.triggering,
+			threshold: args.threshold,
+			vectorscope: args.vectorscope,
+			references: !args.no_reference,
+			show_ui: !args.no_ui,
+			braille: !args.no_braille,
+			scatter: args.scatter,
+			pause: false,
+		};
+
+		let mut app = App {
+			cfg,
+			references: ChartReferences::default(),
+			bounds: ChartBounds::default(),
+			names: ChartNames::default(),
+		};
+
+		app.update_values();
+
+		app
+	}
+}
 // TODO these functions probably shouldn't be here
 
 fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
@@ -334,7 +268,7 @@ fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
 				vec![
 					Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
 					Cell::from(format!("{} plot", if app.cfg.scatter { "scatter" } else { "line" })),
-					Cell::from(format!("{}", if app.cfg.triggering { "triggered" } else { "live" } )),
+					Cell::from(format!("{}", if app.cfg.pause { "stop" } else { "live" } )),
 					Cell::from(format!("threshold {:.0} ^", app.cfg.threshold)),
 					Cell::from(format!("range +{}-", app.cfg.scale)),
 					Cell::from(format!("{}/{} samples", samples as u32, app.cfg.width)),
@@ -355,12 +289,84 @@ fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
 	])
 }
 
-fn poll_event() -> Result<Option<Event>, std::io::Error> {
-	if event::poll(Duration::from_millis(0))? {
-		Ok(Some(event::read()?))
-	} else {
-		Ok(None)
+fn process_events(app: &mut App, args: &Args) -> Result<bool, io::Error> {
+	let mut quit = false;
+
+	while event::poll(Duration::from_millis(0))? { // process all enqueued events
+		let event = event::read()?;
+
+		match event {
+			Event::Key(key) => {
+				match key.modifiers {
+					KeyModifiers::SHIFT => {
+						match key.code {
+							KeyCode::Up       => app.cfg.scale     -= 1000, // inverted to act as zoom
+							KeyCode::Down     => app.cfg.scale     += 1000, // inverted to act as zoom
+							KeyCode::Right    => app.cfg.width     += 100,
+							KeyCode::Left     => app.cfg.width     -= 100,
+							KeyCode::PageUp   => app.cfg.threshold += 1000.0,
+							KeyCode::PageDown => app.cfg.threshold -= 1000.0,
+							_ => {},
+						}
+					},
+					KeyModifiers::CONTROL => {
+						match key.code { // mimic other programs shortcuts to quit, for user friendlyness
+							KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => quit = true,
+							KeyCode::Up       => app.cfg.scale     -= 50, // inverted to act as zoom
+							KeyCode::Down     => app.cfg.scale     += 50, // inverted to act as zoom
+							KeyCode::Right    => app.cfg.width     += 5,
+							KeyCode::Left     => app.cfg.width     -= 5,
+							KeyCode::PageUp   => app.cfg.threshold += 50.0,
+							KeyCode::PageDown => app.cfg.threshold -= 50.0,
+							KeyCode::Char('r') => { // reset settings
+								app.cfg.references  = !args.no_reference;
+								app.cfg.show_ui     = !args.no_ui;
+								app.cfg.braille     = !args.no_braille;
+								app.cfg.threshold   = args.threshold;
+								app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
+								app.cfg.scale       = args.range;
+								app.cfg.vectorscope = args.vectorscope;
+								app.cfg.triggering  = args.triggering;
+							},
+							_ => {},
+						}
+					},
+					_ => {
+						match key.code {
+							KeyCode::Char('q') => quit = true,
+							KeyCode::Char(' ') => app.cfg.pause = !app.cfg.pause,
+							KeyCode::Char('v') => app.cfg.vectorscope = !app.cfg.vectorscope,
+							KeyCode::Char('s') => app.cfg.scatter     = !app.cfg.scatter,
+							KeyCode::Char('b') => app.cfg.braille     = !app.cfg.braille,
+							KeyCode::Char('h') => app.cfg.show_ui     = !app.cfg.show_ui,
+							KeyCode::Char('r') => app.cfg.references  = !app.cfg.references,
+							KeyCode::Char('t') => app.cfg.triggering  = !app.cfg.triggering,
+							KeyCode::Up       => app.cfg.scale     -= 250, // inverted to act as zoom
+							KeyCode::Down     => app.cfg.scale     += 250, // inverted to act as zoom
+							KeyCode::Right    => app.cfg.width     += 25,
+							KeyCode::Left     => app.cfg.width     -= 25,
+							KeyCode::PageUp   => app.cfg.threshold += 250.0,
+							KeyCode::PageDown => app.cfg.threshold -= 250.0,
+							KeyCode::Tab => { // only reset "zoom"
+								app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
+								app.cfg.scale       = args.range;
+							},
+							KeyCode::Esc      => { // back to oscilloscope
+								app.cfg.references  = !args.no_reference;
+								app.cfg.show_ui     = !args.no_ui;
+								app.cfg.vectorscope = args.vectorscope;
+							},
+							_ => {},
+						}
+					}
+				}
+				app.update_values();
+			},
+			_ => {},
+		};
 	}
+
+	Ok(quit)
 }
 
 fn data_set<'a>(
