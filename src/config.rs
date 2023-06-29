@@ -47,9 +47,12 @@ pub struct AppConfig {
 	pub vectorscope: bool,
 	pub references: bool,
 	pub show_ui: bool,
+	pub peaks: bool,
 
 	pub triggering: bool,
 	pub threshold: f64,
+	pub depth: u32,
+	pub falling_edge: bool,
 
 	pub scatter: bool,
 	pub braille: bool,

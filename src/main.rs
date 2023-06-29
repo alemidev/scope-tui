@@ -8,8 +8,9 @@ use tui::{
 	Terminal,
 };
 use crossterm::{
-	event::DisableMouseCapture, execute,
-	terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+	execute, terminal::{
+		disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen
+	},
 };
 
 use clap::Parser;
@@ -49,6 +50,10 @@ pub struct Args {
 	#[arg(long, default_value_t = false)]
 	vectorscope: bool,
 
+	/// Show peaks for each channel as dots
+	#[arg(long, default_value_t = false)]
+	show_peaks: bool,
+
 	/// Tune buffer size to be in tune with given note (overrides buffer option)
 	#[arg(long, value_name = "NOTE")]
 	tune: Option<String>,
@@ -72,6 +77,14 @@ pub struct Args {
 	/// Threshold value for triggering
 	#[arg(long, value_name = "VAL", default_value_t = 0.0)]
 	threshold: f64,
+
+	/// Length of trigger check in samples
+	#[arg(long, value_name = "SMPL", default_value_t = 1)]
+	check_depth: u32,
+
+	/// Trigger upon falling edge instead of rising
+	#[arg(long, default_value_t = false)]
+	falling_edge: bool,
 
 	/// Don't draw reference line
 	#[arg(long, default_value_t = false)]
@@ -115,7 +128,6 @@ fn main() -> Result<(), std::io::Error> {
 	execute!(
 		terminal.backend_mut(),
 		LeaveAlternateScreen,
-		DisableMouseCapture
 	)?;
 	terminal.show_cursor()?;
 

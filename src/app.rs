@@ -70,36 +70,36 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			},
 		}
 
+
 		if !app.cfg.pause {
 			channels = fmt.oscilloscope(&mut buffer, args.channels);
+		}
 
-			if app.cfg.triggering {
-				// TODO allow to customize channel to use for triggering
-				if let Some(ch) = channels.get(0) {
-					let mut discard = 0;
-					for i in 0..ch.len()-1 { // seek to first sample rising through threshold
-						if ch[i] <= app.cfg.threshold && ch[i+1] > app.cfg.threshold { // triggered
-							break;
-						} else {
-							discard += 1;
-						}
-					}
-					for ch in channels.iter_mut() {
-						let limit = if ch.len() < discard { ch.len() } else { discard };
-						*ch = ch[limit..].to_vec();
+		let mut trigger_offset = 0;
+
+		if app.cfg.triggering {
+			// TODO allow to customize channel to use for triggering
+			if let Some(ch) = channels.get(0) {
+				for i in 0..ch.len() { // seek to first sample rising through threshold
+					if triggered(ch, i, app.cfg.threshold, app.cfg.depth, app.cfg.falling_edge) { // triggered
+						break;
+					} else {
+						trigger_offset += 1;
 					}
 				}
+				// for ch in channels.iter_mut() {
+				// 	let limit = if ch.len() < discard { ch.len() } else { discard };
+				// 	*ch = ch[limit..].to_vec();
+				// }
 			}
 		}
 
-		let samples = channels.iter().map(|x| x.len()).max().unwrap_or(0);
-
-		let mut measures : Vec<(String, Vec<(f64, f64)>)>;
+		let mut measures : Vec<(String, Vec<(f64, f64)>)> = vec![];
+		let mut peaks : Vec<Vec<(f64, f64)>> = vec![];
 
 		// This third buffer is kinda weird because of lifetimes on Datasets, TODO
 		//  would be nice to make it more straight forward instead of this deep tuple magic
 		if app.cfg.vectorscope {
-			measures = vec![];
 			for (i, chunk) in channels.chunks(2).enumerate() {
 				let mut tmp = vec![];
 				match chunk.len() {
@@ -121,15 +121,27 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 				measures.push((channel_name((i * 2) + 1, true), tmp[..pivot].to_vec()));
 			}
 		} else {
-			measures = vec![];
 			for (i, channel) in channels.iter().enumerate() {
 				let mut tmp = vec![];
+				let mut peak_up = 0.0;
+				let mut peak_down = 0.0;
 				for i in 0..channel.len() {
-					tmp.push((i as f64, channel[i]));
+					if i >= trigger_offset {
+						tmp.push(((i - trigger_offset) as f64, channel[i]));
+					}
+					if channel[i] > peak_up {
+						peak_up = channel[i];
+					}
+					if channel[i] < peak_down {
+						peak_down = channel[i];
+					}
 				}
 				measures.push((channel_name(i, false), tmp));
+				peaks.push(vec![(0.0, peak_down), (0.0, peak_up)]);
 			}
 		}
+
+		let samples = measures.iter().map(|(_,x)| x.len()).max().unwrap_or(0);
 
 		let mut datasets = vec![];
 
@@ -138,10 +150,20 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 			datasets.push(data_set("", &app.references.y, app.marker_type(), GraphType::Line, app.cfg.axis_color));
 		}
 
-		let trigger_pt = [(0.0, app.cfg.threshold)];
-		datasets.push(data_set("T", &trigger_pt, app.marker_type(), GraphType::Scatter, Color::Cyan));
+		let trigger_pt;
+		if app.cfg.triggering {
+			trigger_pt = [(0.0, app.cfg.threshold)];
+			datasets.push(data_set("T", &trigger_pt, app.marker_type(), GraphType::Scatter, Color::Cyan));
+		}
 
 		let m_len = measures.len() - 1;
+
+		if !app.cfg.vectorscope && app.cfg.peaks {
+			for (i, pt) in peaks.iter().rev().enumerate() {
+				datasets.push(data_set("", pt, app.marker_type(), GraphType::Scatter, app.palette(m_len - i)));
+			}
+		}
+
 		for (i, (name, ds)) in measures.iter().rev().enumerate() {
 			datasets.push(data_set(&name, ds, app.marker_type(), app.graph_type(), app.palette(m_len - i)));
 		}
@@ -191,6 +213,9 @@ impl App {
 		if self.cfg.scale < 0 {
 			self.cfg.scale = 0;
 		}
+		if self.cfg.depth < 1 {
+			self.cfg.depth = 1;
+		}
 		if self.cfg.vectorscope {
 			self.names.x = "left -".into();
 			self.names.y = "| right".into();
@@ -238,12 +263,15 @@ impl From::<&crate::Args> for App {
 			scale: args.range,
 			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
 			triggering: args.triggering,
+			depth: args.check_depth,
 			threshold: args.threshold,
 			vectorscope: args.vectorscope,
 			references: !args.no_reference,
 			show_ui: !args.no_ui,
 			braille: !args.no_braille,
 			scatter: args.scatter,
+			falling_edge: args.falling_edge,
+			peaks: args.show_peaks,
 			pause: false,
 		};
 
@@ -267,24 +295,35 @@ fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
 			Row::new(
 				vec![
 					Cell::from(format!("TUI {}", if app.cfg.vectorscope { "Vectorscope" } else { "Oscilloscope" })).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-					Cell::from(format!("{} plot", if app.cfg.scatter { "scatter" } else { "line" })),
-					Cell::from(format!("{}", if app.cfg.pause { "stop" } else { "live" } )),
-					Cell::from(format!("threshold {:.0} ^", app.cfg.threshold)),
-					Cell::from(format!("range +{}-", app.cfg.scale)),
-					Cell::from(format!("{}/{} samples", samples as u32, app.cfg.width)),
+					Cell::from(format!("{}",
+						if app.cfg.triggering {
+							format!(
+								"{} {:.0}{} trigger",
+								if app.cfg.falling_edge { "v" } else { "^" },
+								app.cfg.threshold,
+								if app.cfg.depth > 1 { format!(":{}", app.cfg.depth) } else { "".into() },
+							)
+						} else {
+							"live".into()
+						}
+					)),
+					Cell::from(format!("-{}+ range", app.cfg.scale)),
+					Cell::from(format!("{}/{} sample", app.cfg.width, samples as u32)),
 					Cell::from(format!("{}fps", framerate)),
+					Cell::from(format!("{}{}", if app.cfg.peaks { "|" } else { " " }, if app.cfg.scatter { "***" } else { "---" })),
+					Cell::from(format!("{}", if app.cfg.pause { "||" } else { "|>" } )),
 				]
 			)
 		]
 	)
 	.style(Style::default().fg(Color::Cyan))
 	.widths(&[
-		Constraint::Percentage(32),
-		Constraint::Percentage(12),
-		Constraint::Percentage(12),
-		Constraint::Percentage(12),
-		Constraint::Percentage(12),
-		Constraint::Percentage(12),
+		Constraint::Percentage(35),
+		Constraint::Percentage(15),
+		Constraint::Percentage(15),
+		Constraint::Percentage(15),
+		Constraint::Percentage(6),
+		Constraint::Percentage(6),
 		Constraint::Percentage(6)
 	])
 }
@@ -292,7 +331,7 @@ fn header(app: &App, samples: u32, framerate: u32) -> Table<'static> {
 fn process_events(app: &mut App, args: &Args) -> Result<bool, io::Error> {
 	let mut quit = false;
 
-	while event::poll(Duration::from_millis(0))? { // process all enqueued events
+	if event::poll(Duration::from_millis(0))? { // process all enqueued events
 		let event = event::read()?;
 
 		match event {
@@ -334,19 +373,25 @@ fn process_events(app: &mut App, args: &Args) -> Result<bool, io::Error> {
 					_ => {
 						match key.code {
 							KeyCode::Char('q') => quit = true,
-							KeyCode::Char(' ') => app.cfg.pause = !app.cfg.pause,
-							KeyCode::Char('v') => app.cfg.vectorscope = !app.cfg.vectorscope,
-							KeyCode::Char('s') => app.cfg.scatter     = !app.cfg.scatter,
-							KeyCode::Char('b') => app.cfg.braille     = !app.cfg.braille,
-							KeyCode::Char('h') => app.cfg.show_ui     = !app.cfg.show_ui,
-							KeyCode::Char('r') => app.cfg.references  = !app.cfg.references,
-							KeyCode::Char('t') => app.cfg.triggering  = !app.cfg.triggering,
-							KeyCode::Up       => app.cfg.scale     -= 250, // inverted to act as zoom
-							KeyCode::Down     => app.cfg.scale     += 250, // inverted to act as zoom
-							KeyCode::Right    => app.cfg.width     += 25,
-							KeyCode::Left     => app.cfg.width     -= 25,
-							KeyCode::PageUp   => app.cfg.threshold += 250.0,
-							KeyCode::PageDown => app.cfg.threshold -= 250.0,
+							KeyCode::Char(' ') => app.cfg.pause        = !app.cfg.pause,
+							KeyCode::Char('v') => app.cfg.vectorscope  = !app.cfg.vectorscope,
+							KeyCode::Char('s') => app.cfg.scatter      = !app.cfg.scatter,
+							KeyCode::Char('b') => app.cfg.braille      = !app.cfg.braille,
+							KeyCode::Char('h') => app.cfg.show_ui      = !app.cfg.show_ui,
+							KeyCode::Char('r') => app.cfg.references   = !app.cfg.references,
+							KeyCode::Char('e') => app.cfg.falling_edge = !app.cfg.falling_edge,
+							KeyCode::Char('t') => app.cfg.triggering   = !app.cfg.triggering,
+							KeyCode::Char('p') => app.cfg.peaks        = !app.cfg.peaks,
+							KeyCode::Char('=') => app.cfg.depth       += 1,
+							KeyCode::Char('-') => app.cfg.depth       -= 1,
+							KeyCode::Char('+') => app.cfg.depth       += 10,
+							KeyCode::Char('_') => app.cfg.depth       -= 10,
+							KeyCode::Up       => app.cfg.scale        -= 250, // inverted to act as zoom
+							KeyCode::Down     => app.cfg.scale        += 250, // inverted to act as zoom
+							KeyCode::Right    => app.cfg.width        += 25,
+							KeyCode::Left     => app.cfg.width        -= 25,
+							KeyCode::PageUp   => app.cfg.threshold    += 250.0,
+							KeyCode::PageDown => app.cfg.threshold    -= 250.0,
 							KeyCode::Tab => { // only reset "zoom"
 								app.cfg.width       = args.buffer / (args.channels as u32 * 2); // TODO ...
 								app.cfg.scale       = args.range;
@@ -367,6 +412,34 @@ fn process_events(app: &mut App, args: &Args) -> Result<bool, io::Error> {
 	}
 
 	Ok(quit)
+}
+
+// TODO can this be made nicer?
+fn triggered(data: &[f64], index: usize, threshold: f64, depth: u32, falling_edge:bool) -> bool {
+	if data.len() < index + (1+depth as usize) { return false; }
+	if falling_edge {
+		if data[index] >= threshold {
+			for i in 1..=depth as usize {
+				if data[index+i] >= threshold {
+					return false;
+				}
+			}
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		if data[index] <= threshold {
+			for i in 1..=depth as usize {
+				if data[index+i] <= threshold {
+					return false;
+				}
+			}
+			return true;
+		} else {
+			return false;
+		}
+	}
 }
 
 fn data_set<'a>(
