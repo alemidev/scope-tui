@@ -9,6 +9,7 @@ pub enum Dimension {
 	X, Y
 }
 
+#[derive(Debug, Clone)]
 pub struct GraphConfig {
 	pub samples: u32,
 	pub scale: u32,
@@ -32,7 +33,7 @@ impl GraphConfig {
 pub trait DisplayMode {
 	// MUST define
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis; // TODO simplify this
-	fn process(&self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet>;
+	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet>;
 
 	// SHOULD override
 	fn handle(&mut self, _event: Event) {}

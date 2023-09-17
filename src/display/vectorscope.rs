@@ -2,6 +2,7 @@ use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
 
 use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 
+#[derive(Default)]
 pub struct Vectorscope {}
 
 impl DisplayMode for Vectorscope {
@@ -32,7 +33,7 @@ impl DisplayMode for Vectorscope {
 		]
 	}
 
-	fn process(&self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
 		let mut out = Vec::new();
 
 		for (n, chunk) in data.chunks(2).enumerate() {

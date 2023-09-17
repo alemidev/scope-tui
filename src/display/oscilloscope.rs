@@ -5,6 +5,7 @@ use crate::app::update_value_f;
 
 use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 
+#[derive(Default)]
 pub struct Oscilloscope {
 	pub triggering: bool,
 	pub falling_edge: bool,
@@ -47,7 +48,7 @@ impl DisplayMode for Oscilloscope {
 		a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
 	}
 
-	fn process(&self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
 		let mut out = Vec::new();
 
 		let mut trigger_offset = 0;

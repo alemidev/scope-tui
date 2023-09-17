@@ -19,4 +19,4 @@ libpulse-simple-binding = "2.25"
 clap = { version = "4.0.32", features = ["derive"] }
 derive_more = "0.99.17"
 thiserror = "1.0.48"
-easyfft = "0.4.0"
+rustfft = "6.1.0"
