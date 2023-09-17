@@ -34,19 +34,13 @@ pub trait DisplayMode {
 	// MUST define
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis; // TODO simplify this
 	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet>;
+	fn mode_str(&self) -> &'static str;
 
 	// SHOULD override
-	fn handle(&mut self, _event: Event) {}
 	fn channel_name(&self, index: usize) -> String { format!("{}", index) }
 	fn header(&self, _cfg: &GraphConfig) -> String { "".into() }
-	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
-		let half_width = cfg.samples as f64 / 2.0;
-		vec![
-			DataSet::new("".into(), vec![(0.0, 0.0), (cfg.width as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new("".into(), vec![(half_width, -(cfg.scale as f64)), (half_width, cfg.scale as f64)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-
-		]
-	}
+	fn references(&self, _cfg: &GraphConfig) -> Vec<DataSet> { vec![] }
+	fn handle(&mut self, _event: Event) {}
 }
 
 pub struct DataSet {

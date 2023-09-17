@@ -1,7 +1,7 @@
 use crossterm::event::{Event, KeyModifiers, KeyCode};
 use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
 
-use crate::app::update_value_f;
+use crate::app::{update_value_f, update_value_i};
 
 use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 
@@ -50,6 +50,12 @@ impl DisplayMode for Oscilloscope {
 			a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
 		}
 		a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
+	}
+
+	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
+		vec![
+			DataSet::new("".into(), vec![(0.0, 0.0), (cfg.samples as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+		]
 	}
 
 	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
@@ -117,10 +123,13 @@ impl DisplayMode for Oscilloscope {
 				KeyCode::Char('t') => self.triggering   = !self.triggering,
 				KeyCode::Char('e') => self.falling_edge = !self.falling_edge,
 				KeyCode::Char('p') => self.peaks        = !self.peaks,
-				KeyCode::Char('=') => self.depth       += 1,
-				KeyCode::Char('-') => self.depth       -= 1,
-				KeyCode::Char('+') => self.depth       += 10,
-				KeyCode::Char('_') => self.depth       -= 10,
+				KeyCode::Char('=') => update_value_i(&mut self.depth, true, 1, 1.0, 0..65535),
+				KeyCode::Char('-') => update_value_i(&mut self.depth, false, 1, 1.0, 0..65535),
+				KeyCode::Char('+') => update_value_i(&mut self.depth, true, 10, 1.0, 0..65535),
+				KeyCode::Char('_') => update_value_i(&mut self.depth, false, 10, 1.0, 0..65535),
+				KeyCode::Esc => {
+					self.triggering = false;
+				},
 				_ => {}
 			}
 		}

@@ -177,6 +177,10 @@ impl App {
 						CurrentDisplayMode::Spectroscope => self.mode = CurrentDisplayMode::Oscilloscope,
 					}
 				},
+				KeyCode::Esc => {
+					self.graph.samples = self.graph.width;
+					self.graph.scale = 20000;
+				},
 				_ => {},
 			}
 		};
