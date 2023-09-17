@@ -23,6 +23,10 @@ fn complex_to_magnitude(c: Complex<f64>) -> f64 {
 }
 
 impl DisplayMode for Spectroscope {
+	fn mode_str(&self) -> &'static str {
+		"spectro"
+	}
+
 	fn channel_name(&self, index: usize) -> String {
 		match index {
 			0 => "L".into(),

@@ -107,7 +107,7 @@ impl App {
 					let mut size = f.size();
 					if self.graph.show_ui {
 						f.render_widget(
-							make_header(&self.graph, &self.current_display().header(&self.graph), framerate, self.pause),
+							make_header(&self.graph, &self.current_display().header(&self.graph), self.current_display().mode_str(), framerate, self.pause),
 							Rect { x: size.x, y: size.y, width: size.width, height:1 } // a 1px line at the top
 						);
 						size.height -= 1;
@@ -213,12 +213,12 @@ pub fn update_value_i(val: &mut u32, inc: bool, base: u32, magnitude: f64, range
 	}
 }
 
-fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, fps: usize, pause: bool) -> Table<'a> {
+fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, kind_o_scope: &'static str, fps: usize, pause: bool) -> Table<'a> {
 	Table::new(
 		vec![
 			Row::new(
 				vec![
-					Cell::from("tui **scope").style(Style::default().fg(*cfg.palette.get(0).expect("empty palette?")).add_modifier(Modifier::BOLD)),
+					Cell::from(format!("{}::scope-tui", kind_o_scope)).style(Style::default().fg(*cfg.palette.get(0).expect("empty palette?")).add_modifier(Modifier::BOLD)),
 					Cell::from(module_header),
 					Cell::from(format!("-{}+", cfg.scale)),
 					Cell::from(format!("{}/{} spf", cfg.samples, cfg.width)),

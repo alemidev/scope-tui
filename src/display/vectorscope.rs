@@ -6,6 +6,10 @@ use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 pub struct Vectorscope {}
 
 impl DisplayMode for Vectorscope {
+	fn mode_str(&self) -> &'static str {
+		"vector"
+	}
+
 	fn channel_name(&self, index: usize) -> String {
 		format!("{}", index)
 	}

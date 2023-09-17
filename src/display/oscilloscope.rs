@@ -15,6 +15,10 @@ pub struct Oscilloscope {
 }
 
 impl DisplayMode for Oscilloscope {
+	fn mode_str(&self) -> &'static str {
+		"oscillo"
+	}
+
 	fn channel_name(&self, index: usize) -> String {
 		match index {
 			0 => "L".into(),
