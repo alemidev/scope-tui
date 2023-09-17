@@ -1,4 +1,4 @@
-use libpulse_binding::{stream::Direction, sample::{Spec, Format}, def::BufferAttr, error::{PAErr, Code}};
+use libpulse_binding::{sample::{Spec, Format}, def::BufferAttr, error::PAErr, stream::Direction};
 use libpulse_simple_binding::Simple;
 
 pub trait DataSource {

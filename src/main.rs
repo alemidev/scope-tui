@@ -1,9 +1,11 @@
 mod parser;
 mod app;
-mod config;
 mod music;
 mod source;
+mod display;
 
+use app::App;
+use source::PulseAudioSimple;
 use tui::{
 	backend::CrosstermBackend,
 	Terminal,
@@ -17,7 +19,6 @@ use crossterm::{
 use clap::Parser;
 
 use crate::music::Note;
-use crate::app::run_app;
 
 const HELP_TEMPLATE : &str = "{before-help}\
 {name} {version} -- by {author}
@@ -41,7 +42,7 @@ pub struct Args {
 
 	/// Max value, positive and negative, on amplitude scale
 	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
-	range: i32, // TODO counterintuitive, improve this
+	range: u32, // TODO counterintuitive, improve this
 
 	/// Use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
@@ -52,7 +53,7 @@ pub struct Args {
 	vectorscope: bool,
 
 	/// Show peaks for each channel as dots
-	#[arg(long, default_value_t = false)]
+	#[arg(long, default_value_t = true)]
 	show_peaks: bool,
 
 	/// Tune buffer size to be in tune with given note (overrides buffer option)
@@ -114,6 +115,16 @@ fn main() -> Result<(), std::io::Error> {
 		}
 	}
 
+	let source = PulseAudioSimple::new(
+		args.device.as_deref(),
+		args.channels,
+		args.sample_rate,
+		args.buffer,
+		args.server_buffer
+	).unwrap();
+
+	let mut app = App::from(&args);
+
 	// setup terminal
 	enable_raw_mode()?;
 	let mut stdout = std::io::stdout();
@@ -122,7 +133,7 @@ fn main() -> Result<(), std::io::Error> {
 	let mut terminal = Terminal::new(backend)?;
 	terminal.hide_cursor()?;
 
-	let res = run_app(args, &mut terminal);
+	let res = app.run(source, &mut terminal);
 
 	// restore terminal
 	disable_raw_mode()?;
