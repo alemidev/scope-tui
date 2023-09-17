@@ -5,7 +5,8 @@ pub enum Tone {
 	C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, B
 }
 
-pub struct ToneError {}
+#[derive(Debug, thiserror::Error, derive_more::Display)]
+pub struct ToneError();
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Note {
@@ -13,21 +14,10 @@ pub struct Note {
 	octave: u32,
 }
 
+#[derive(Debug, thiserror::Error, derive_more::From, derive_more::Display)]
 pub enum NoteError {
 	InvalidOctave(ParseIntError),
 	InalidNote(ToneError),
-}
-
-impl From::<ToneError> for NoteError {
-	fn from(e: ToneError) -> Self {
-		NoteError::InalidNote(e)
-	}
-}
-
-impl From::<ParseIntError> for NoteError {
-	fn from(e: ParseIntError) -> Self {
-		NoteError::InvalidOctave(e)
-	}
 }
 
 impl FromStr for Note {
@@ -52,13 +42,6 @@ impl FromStr for Note {
 	}
 }
 
-// impl TryFrom::<String> for Note {
-// 	type Error = NoteError;
-// 	fn try_from(value: String) -> Result<Self, Self::Error> {
-// 		value.as_str().parse::<Note>()
-// 	}
-// }
-
 impl FromStr for Tone {
 	type Err = ToneError;
 
@@ -76,7 +59,7 @@ impl FromStr for Tone {
 			"A"         => Ok(Tone::A ),
 			"A#" | "Bb" => Ok(Tone::Bb),
 			"B"         => Ok(Tone::B ),
-			_           => Err(ToneError {  })
+			_           => Err(ToneError())
 		}
 	}
 }
@@ -85,15 +68,8 @@ impl Note {
 	pub fn tune_buffer_size(&self, sample_rate: u32) -> u32 {
 		let t = 1.0 / self.tone.freq(self.octave); // periodo ?
 		let buf = (sample_rate as f32) * t;
-		return (buf * 4.0).round() as u32;
+		(buf * 4.0).round() as u32
 	}
-
-	// pub fn tune_sample_rate(&self, octave:u32, buffer_size: u32) -> u32 {
-	// 	// TODO does it just work the same way?
-	// 	let t = 1.0 / self.freq(octave); // periodo ?
-	// 	let buf = (buffer_size as f32) * t;
-	// 	return (buf * 4.0).round() as u32;
-	// }
 }
 
 impl Tone {
@@ -122,9 +98,5 @@ impl Tone {
 			}
 		}
 	}
-
-	// pub fn all() -> Vec<Note> {
-	// 	vec![Note::C, Note::Db, Note::D, Note::Eb, Note::E, Note::F, Note::Gb, Note::G, Note::Ab, Note::A, Note::Bb, Note::B]
-	// }
 }
 

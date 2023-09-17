@@ -17,3 +17,5 @@ crossterm = "0.25"
 libpulse-binding = "2.0"
 libpulse-simple-binding = "2.25"
 clap = { version = "4.0.32", features = ["derive"] }
+derive_more = "0.99.17"
+thiserror = "1.0.48"
