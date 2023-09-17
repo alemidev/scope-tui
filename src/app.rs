@@ -12,49 +12,21 @@ use libpulse_simple_binding::Simple;
 use libpulse_binding::{stream::Direction, def::BufferAttr};
 use libpulse_binding::sample::{Spec, Format};
 
-use crate::Args;
+use crate::{Args, source::{PulseAudioSimple, DataSource}};
 use crate::config::{ChartNames, ChartBounds, ChartReferences, AppConfig, Dimension};
 use crate::parser::{SampleParser, Signed16PCM};
 
 pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 	// prepare globals
-	let mut buffer : Vec<u8> = vec![0; args.buffer as usize];
 	let mut app = App::from(&args);
 	let fmt = Signed16PCM{}; // TODO some way to choose this?
-
-	// setup audio capture
-	let spec = Spec {
-		format: Format::S16NE,
-		channels: args.channels,
-		rate: args.sample_rate,
-	};
-	assert!(spec.is_valid());
-
-	let dev = match &args.device {
-		Some(d) => Some(d.as_str()),
-		None => None,
-	};
-
-	let s = match Simple::new(
-		None,                // Use the default server
-		"scope-tui",         // Our application’s name
-		Direction::Record,   // We want a record stream
-		dev,                 // Use requested device, or default
-		"data",              // Description of our stream
-		&spec,               // Our sample format
-		None,                // Use default channel map
-		Some(&BufferAttr {
-			maxlength: args.server_buffer * args.buffer,
-			fragsize: args.buffer,
-			..Default::default()
-		}),
-	) {
-		Ok(s) => s,
-		Err(e) => {
-			println!("[!] Could not connect to pulseaudio : {:?}", e);
-			return Err(io::Error::new(ErrorKind::Other, "could not connect to pulseaudio"));
-		},
-	};
+	let mut source = PulseAudioSimple::new(
+		args.device.as_deref(),
+		args.channels,
+		args.sample_rate,
+		args.buffer,
+		args.server_buffer
+	).unwrap();
 
 	let mut fps = 0;
 	let mut framerate = 0;
@@ -62,17 +34,10 @@ pub fn run_app<T : Backend>(args: Args, terminal: &mut Terminal<T>) -> Result<()
 	let mut channels = vec![];
 
 	loop {
-		match s.read(&mut buffer) {
-			Ok(()) => {},
-			Err(e) => {
-				println!("[!] Could not read data from pulseaudio : {:?}", e);
-				return Err(io::Error::new(ErrorKind::Other, "could not read from pulseaudio"));
-			},
-		}
-
+		let data = source.recv().unwrap();
 
 		if !app.cfg.pause {
-			channels = fmt.oscilloscope(&mut buffer, args.channels);
+			channels = fmt.oscilloscope(data, args.channels);
 		}
 
 		let mut trigger_offset = 0;

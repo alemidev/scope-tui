@@ -2,6 +2,7 @@ mod parser;
 mod app;
 mod config;
 mod music;
+mod source;
 
 use tui::{
 	backend::CrosstermBackend,
