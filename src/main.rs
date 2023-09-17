@@ -6,7 +6,7 @@ mod display;
 
 use app::App;
 use source::PulseAudioSimple;
-use tui::{
+use ratatui::{
 	backend::CrosstermBackend,
 	Terminal,
 };

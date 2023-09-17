@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyModifiers, KeyCode};
-use tui::{widgets::{Axis, GraphType}, style::Style, text::Span};
+use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
 
 use crate::app::update_value_f;
 

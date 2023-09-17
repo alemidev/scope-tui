@@ -1,6 +1,6 @@
 
 use std::{io, time::{Duration, Instant}, ops::Range};
-use tui::{
+use ratatui::{
 	style::Color, widgets::{Table, Row, Cell}, symbols::Marker,
 	backend::Backend,
 	widgets::Chart,

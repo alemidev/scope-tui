@@ -3,7 +3,7 @@ pub mod vectorscope;
 pub mod spectroscope;
 
 use crossterm::event::Event;
-use tui::{widgets::{Dataset, Axis, GraphType}, style::{Style, Color}, symbols::Marker};
+use ratatui::{widgets::{Dataset, Axis, GraphType}, style::{Style, Color}, symbols::Marker};
 
 pub enum Dimension {
 	X, Y
