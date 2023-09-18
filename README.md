@@ -1,5 +1,5 @@
 # scope-tui
-A simple oscilloscope/vectorscope/spectroscope in your terminal
+A simple oscilloscope/vectorscope/spectroscope for your terminal
 
 ![scope-tui interface](https://cdn.alemi.dev/scope-tui-wide.png)
 
