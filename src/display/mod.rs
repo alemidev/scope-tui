@@ -12,6 +12,7 @@ pub enum Dimension {
 #[derive(Debug, Clone)]
 pub struct GraphConfig {
 	pub samples: u32,
+	pub sampling_rate: u32,
 	pub scale: u32,
 	pub width: u32,
 	pub scatter: bool,
@@ -32,6 +33,7 @@ impl GraphConfig {
 #[allow(clippy::ptr_arg)] // TODO temporarily! it's a shitty solution
 pub trait DisplayMode {
 	// MUST define
+	fn from_args(args: &crate::ScopeArgs) -> Self where Self : Sized;
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis; // TODO simplify this
 	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet>;
 	fn mode_str(&self) -> &'static str;

@@ -27,8 +27,9 @@ pub struct App {
 	mode: CurrentDisplayMode,
 }
 
-impl From::<&crate::Args> for App {
-	fn from(args: &crate::Args) -> Self {
+// TODO another way to build this that doesn't require getting cli args directly!!!
+impl From::<&crate::ScopeArgs> for App {
+	fn from(args: &crate::ScopeArgs) -> Self {
 		let graph = GraphConfig {
 			axis_color: Color::DarkGray,
 			labels_color: Color::Cyan,
@@ -36,6 +37,7 @@ impl From::<&crate::Args> for App {
 			scale: args.range,
 			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
 			samples: args.buffer / (2 * args.channels as u32),
+			sampling_rate: args.sample_rate,
 			references: !args.no_reference,
 			show_ui: !args.no_ui,
 			scatter: args.scatter,
@@ -46,21 +48,9 @@ impl From::<&crate::Args> for App {
 			},
 		};
 
-		let oscilloscope = Oscilloscope {
-			triggering: args.triggering,
-			depth: args.check_depth,
-			threshold: args.threshold,
-			falling_edge: args.falling_edge,
-			peaks: args.show_peaks,
-		};
-
-		let vectorscope = Vectorscope::default();
-		let spectroscope = Spectroscope {
-			sampling_rate: args.sample_rate,
-			buffer_size: graph.width,
-			average: 1,
-			buf: Vec::new(),
-		};
+		let oscilloscope = Oscilloscope::from_args(args);
+		let vectorscope = Vectorscope::from_args(args);
+		let spectroscope = Spectroscope::from_args(args);
 
 		App { 
 			graph, oscilloscope, vectorscope, spectroscope,
@@ -72,7 +62,7 @@ impl From::<&crate::Args> for App {
 }
 
 impl App {
-	pub fn run<T : Backend>(&mut self, mut source: impl DataSource, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
+	pub fn run<T : Backend>(&mut self, mut source: Box<dyn DataSource>, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 		// prepare globals
 		let fmt = Signed16PCM{}; // TODO some way to choose this?
 	
@@ -82,7 +72,8 @@ impl App {
 		let mut channels = vec![];
 	
 		loop {
-			let data = source.recv().unwrap();
+			let data = source.recv()
+				.ok_or(io::Error::new(io::ErrorKind::BrokenPipe, "data source returned null"))?;
 	
 			if !self.pause {
 				channels = fmt.oscilloscope(data, self.channels);

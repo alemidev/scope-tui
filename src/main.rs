@@ -5,7 +5,6 @@ mod source;
 mod display;
 
 use app::App;
-use source::PulseAudioSimple;
 use ratatui::{
 	backend::CrosstermBackend,
 	Terminal,
@@ -16,7 +15,7 @@ use crossterm::{
 	},
 };
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 use crate::music::Note;
 
@@ -29,80 +28,73 @@ const HELP_TEMPLATE : &str = "{before-help}\
 {all-args}{after-help}
 ";
 
-/// A simple oscilloscope/vectorscope for your terminal
+/// a simple oscilloscope/vectorscope for your terminal
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = HELP_TEMPLATE)]
-pub struct Args {
-	/// Audio device to attach to
-	device: Option<String>,
+pub struct ScopeArgs {
+	#[clap(subcommand)]
+	source: ScopeSource,
 
-	/// Size of audio buffer, and width of scope
-	#[arg(short, long, value_name = "SIZE", default_value_t = 8192)]
-	buffer: u32,
-
-	/// Max value, positive and negative, on amplitude scale
-	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
-	range: u32, // TODO counterintuitive, improve this
-
-	/// Use vintage looking scatter mode instead of line mode
-	#[arg(long, default_value_t = false)]
-	scatter: bool,
-
-	/// Combine left and right channels into vectorscope view
-	#[arg(long, default_value_t = false)]
-	vectorscope: bool,
-
-	/// Show peaks for each channel as dots
-	#[arg(long, default_value_t = true)]
-	show_peaks: bool,
-
-	/// Tune buffer size to be in tune with given note (overrides buffer option)
-	#[arg(long, value_name = "NOTE")]
-	tune: Option<String>,
-
-	/// Number of channels to open
+	/// number of channels to open
 	#[arg(long, value_name = "N", default_value_t = 2)]
 	channels: u8,
 
-	/// Sample rate to use
+	/// tune buffer size to be in tune with given note (overrides buffer option)
+	#[arg(long, value_name = "NOTE")]
+	tune: Option<String>,
+
+	/// size of audio buffer, and width of scope
+	#[arg(short, long, value_name = "SIZE", default_value_t = 8192)]
+	buffer: u32,
+
+	/// sample rate to use
 	#[arg(long, value_name = "HZ", default_value_t = 44100)]
 	sample_rate: u32,
 
-	/// Pulseaudio server buffer size, in block number
-	#[arg(long, value_name = "N", default_value_t = 32)]
-	server_buffer: u32,
+	/// max value, positive and negative, on amplitude scale
+	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
+	range: u32, // TODO counterintuitive, improve this
 
-	/// Start drawing at first rising edge
+	/// use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
-	triggering: bool,
+	scatter: bool,
 
-	/// Threshold value for triggering
-	#[arg(long, value_name = "VAL", default_value_t = 0.0)]
-	threshold: f64,
-
-	/// Length of trigger check in samples
-	#[arg(long, value_name = "SMPL", default_value_t = 1)]
-	check_depth: u32,
-
-	/// Trigger upon falling edge instead of rising
-	#[arg(long, default_value_t = false)]
-	falling_edge: bool,
-
-	/// Don't draw reference line
+	/// don't draw reference line
 	#[arg(long, default_value_t = false)]
 	no_reference: bool,
 
-	/// Hide UI and only draw waveforms
+	/// hide UI and only draw waveforms
 	#[arg(long, default_value_t = false)]
 	no_ui: bool,
 
-	/// Don't use braille dots for drawing lines
+	/// don't use braille dots for drawing lines
 	#[arg(long, default_value_t = false)]
 	no_braille: bool,
 }
 
-fn main() -> Result<(), std::io::Error> {
-	let mut args = Args::parse();
+#[derive(Debug, Clone, Subcommand)]
+pub enum ScopeSource {
+
+	#[cfg(feature = "pulseaudio")]
+	/// use PulseAudio Simple api to read data from an audio sink
+	Pulse {
+		/// source device to attach to
+		device: Option<String>,
+
+		/// PulseAudio server buffer size, in block number
+		#[arg(long, value_name = "N", default_value_t = 32)]
+		server_buffer: u32,
+	},
+
+	/// use a file from filesystem and read its content
+	File {
+		/// path on filesystem of file or pipe
+		path: String,
+	},
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+	let mut args = ScopeArgs::parse();
 
 	if let Some(txt) = &args.tune { // TODO make it less jank
 		if let Ok(note) = txt.parse::<Note>() {
@@ -115,13 +107,24 @@ fn main() -> Result<(), std::io::Error> {
 		}
 	}
 
-	let source = PulseAudioSimple::new(
-		args.device.as_deref(),
-		args.channels,
-		args.sample_rate,
-		args.buffer,
-		args.server_buffer
-	).unwrap();
+	let source = match &args.source {
+
+		#[cfg(feature = "pulseaudio")]
+		ScopeSource::Pulse { device, server_buffer } => {
+			source::pulseaudio::PulseAudioSimpleDataSource::new(
+				device.as_deref(),
+				args.channels,
+				args.sample_rate,
+				args.buffer,
+				*server_buffer,
+			)?
+		},
+
+		ScopeSource::File { path } => {
+			source::file::FileSource::new(path, args.buffer)?
+		},
+
+	};
 
 	let mut app = App::from(&args);
 
@@ -143,11 +146,9 @@ fn main() -> Result<(), std::io::Error> {
 	)?;
 	terminal.show_cursor()?;
 
-	match res {
-		Ok(()) => Ok(()),
-		Err(e) => {
-			eprintln!("[!] Error executing app: {:?}", e);
-			Err(e)
-		}
+	if let Err(e) = res {
+		eprintln!("[!] Error executing app: {:?}", e);
 	}
+
+	Ok(())
 }

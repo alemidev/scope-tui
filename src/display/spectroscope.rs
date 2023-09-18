@@ -23,6 +23,14 @@ fn complex_to_magnitude(c: Complex<f64>) -> f64 {
 }
 
 impl DisplayMode for Spectroscope {
+	fn from_args(args: &crate::ScopeArgs) -> Self {
+		Spectroscope {
+			sampling_rate: args.sample_rate,
+			buffer_size: args.buffer / (2 * args.channels as u32),
+			average: 1, buf: Vec::new(),
+		}
+	}
+
 	fn mode_str(&self) -> &'static str {
 		"spectro"
 	}
@@ -61,6 +69,7 @@ impl DisplayMode for Spectroscope {
 	}
 
 	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
+		if self.average == 0 { self.average = 1 } // otherwise fft breaks
 		for (i, chan) in data.iter().enumerate() {
 			if self.buf.len() <= i {
 				self.buf.push(VecDeque::new());

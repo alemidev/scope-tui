@@ -15,6 +15,10 @@ pub struct Oscilloscope {
 }
 
 impl DisplayMode for Oscilloscope {
+	fn from_args(_args: &crate::ScopeArgs) -> Self {
+		Oscilloscope::default()
+	}
+
 	fn mode_str(&self) -> &'static str {
 		"oscillo"
 	}
