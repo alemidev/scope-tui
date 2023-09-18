@@ -3,9 +3,7 @@ A simple oscilloscope/vectorscope/spectroscope in your terminal
 
 ![scope-tui interface](https://cdn.alemi.dev/scope-tui-wide.png)
 
-Currently only for Linux (with Pulseaudio)
-
-See it in action [here](https://cdn.alemi.dev/scope-tui-oscilloscope-music.webm) with [Jerobeam Fenderson - Planets](https://youtu.be/XziuEdpVUe0) (oscilloscope music)
+[See it in action here](https://cdn.alemi.dev/scope-tui-oscilloscope-music.webm) with [Planets](https://youtu.be/XziuEdpVUe0) (oscilloscope music by Jerobeam Fenderson)
 
 ## Why
 I really love [cava](https://github.com/karlstav/cava). It provides a crude but pleasant frequency plot for your music: just the bare minimum to see leads solos and basslines.
@@ -13,31 +11,50 @@ I wanted to also be able to see waveforms, but to my knowledge nothing is availa
 I thus decided to solve this very critical issue with my own hands! And over a night of tinkering with pulseaudio (via [libpulse-simple-binding](https://crates.io/crates/libpulse-simple-binding)) and some TUI graphics (via [tui-rs](https://github.com/fdehau/tui-rs)), 
 the first version of `scope-tui` was developed, with very minimal settings given from command line, but a bonus vectorscope mode baked in.
 
+# Installation
+Currently no binaries or packages are available and you must compile this yourself.
+
+If you don't have the rust toolchain already installed, get it with [rustup](https://rustup.rs/)
+
+Once you have `rustc` and `cargo` installed, clone this repository and compile with cargo:
+```bash
+$ git clone https://github.com/alemidev/scope-tui
+$ cd scope-tui
+$ cargo build --release --all-features
+```
+
+The resulting binary will be under `./target/release/scope-tui`. Copy it in your PATH or use it from there.
+
+## Sources
+A very crude file source is available, which can be a named pipe. While this allows connecting `scope-tui` to a lot of things, it's not super convenient, and more specialized sources should be used when available.
+
+Currently only the PulseAudio source on Linux has been implemented, but more are planned for the future thanks to the modular sources structure.
+
+By default only the file source will be built into `scope-tui`. Enable all sources by passing the `--all-features` flag when compiling, or enable specific features:
+ * `pulseaudio` : pulseaudio implementation with LibPulse Simple bindings
+
+
 # Usage
 ```
-$ scope-tui [OPTIONS] [DEVICE]
+$ scope-tui [OPTIONS] <COMMAND>
 
-Arguments:
-  [DEVICE]  Audio device to attach to
+Commands:
+  pulse  use PulseAudio Simple api to read data from an audio sink
+  file   use a file from filesystem and read its content
+  help   Print this message or the help of the given subcommand(s)
 
 Options:
-  -b, --buffer <SIZE>       Size of audio buffer, and width of scope [default: 8192]
-  -r, --range <SIZE>        Max value, positive and negative, on amplitude scale [default: 20000]
-      --scatter             Use vintage looking scatter mode instead of line mode
-      --show-peaks          Show peaks for each channel as dots
-      --tune <NOTE>         Tune buffer size to be in tune with given note (overrides buffer option)
-      --channels <N>        Number of channels to open [default: 2]
-      --sample-rate <HZ>    Sample rate to use [default: 44100]
-      --server-buffer <N>   Pulseaudio server buffer size, in block number [default: 32]
-      --triggering          Start drawing at first rising edge
-      --threshold <VAL>     Threshold value for triggering [default: 0]
-      --check-depth <SMPL>  Length of trigger check in samples [default: 1]
-      --falling-edge        Trigger upon falling edge instead of rising
-      --no-reference        Don't draw reference line
-      --no-ui               Hide UI and only draw waveforms
-      --no-braille          Don't use braille dots for drawing lines
-  -h, --help                Print help information
-  -V, --version             Print version information
+      --channels <N>      number of channels to open [default: 2]
+      --tune <NOTE>       tune buffer size to be in tune with given note (overrides buffer option)
+  -b, --buffer <SIZE>     size of audio buffer, and width of scope [default: 8192]
+      --sample-rate <HZ>  sample rate to use [default: 44100]
+  -r, --range <SIZE>      max value, positive and negative, on amplitude scale [default: 20000]
+      --scatter           use vintage looking scatter mode instead of line mode
+      --no-reference      don't draw reference line
+      --no-ui             hide UI and only draw waveforms
+      --no-braille        don't use braille dots for drawing lines
+  -h, --help              Print help information
+  -V, --version           Print version information
 ```
 
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192` or tuning to the 0th octave.
@@ -67,11 +84,32 @@ To change audio buffer size, the PulseAudio client must be restarted. Because of
 * Combine increment/decrement commands with `<CTRL>` to increase or decrease by x5
 * Combine increment/decrement commands with `<ALT>` to increase or decrease by x 1/5
 
-# About precision
-While "scatter" plot mode is as precise as Pulseaudio and the terminal lets us be, "line" plot mode simply draws a straight line across points, meaning high frequencies don't get properly represented.
+## About precision
+While "scatter" plot mode is as precise as the samples are and the terminal lets us be, "line" plot mode simply draws a straight line across points, meaning high frequencies don't get properly represented.
 
 Latency is kept to a minimum thanks to small buffer and block sizes.
 
 Sample rate can be freely specified but will ultimately be limited by source's actual sample rate.
 
 Decrease/increase terminal font size to increase/decrease scope resolution.
+
+# Development
+Any help is appreciated, feel free to contact me if you want to contribuite.
+
+Some features I plan to work on and would like to add:
+ * [x] Oscilloscope
+ * [x] Vectorscope
+ * [x] Linux audio source
+ * [x] Simple controls
+ * [x] Simple triggering
+ * [x] Multiple channels
+ * [x] Spectroscope
+ * [x] File source
+ * [ ] Mac audio sources
+ * [ ] Windows audio sources
+ * [ ] Improve file audio source
+ * [ ] Network sources
+ * [ ] GUI frontend
+ * [ ] Serial sources
+ * [ ] USB sources
+ * [ ] SDR sources
