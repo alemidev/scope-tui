@@ -42,7 +42,7 @@ impl DisplayMode for Spectroscope {
 			sampling_rate: args.sample_rate,
 			buffer_size: args.buffer / (2 * args.channels as u32),
 			average: 1, buf: Vec::new(),
-			window: true,
+			window: false,
 		}
 	}
 
