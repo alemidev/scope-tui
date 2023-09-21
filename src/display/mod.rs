@@ -11,6 +11,7 @@ pub enum Dimension {
 
 #[derive(Debug, Clone)]
 pub struct GraphConfig {
+	pub pause: bool,
 	pub samples: u32,
 	pub sampling_rate: u32,
 	pub scale: u32,

@@ -18,7 +18,6 @@ pub enum CurrentDisplayMode {
 }
 
 pub struct App {
-	pause: bool,
 	channels: u8,
 	graph: GraphConfig,
 	oscilloscope: Oscilloscope,
@@ -41,6 +40,7 @@ impl From::<&crate::ScopeArgs> for App {
 			references: !args.no_reference,
 			show_ui: !args.no_ui,
 			scatter: args.scatter,
+			pause: false,
 			marker_type: if args.no_braille {
 				Marker::Dot
 			} else {
@@ -56,7 +56,6 @@ impl From::<&crate::ScopeArgs> for App {
 			graph, oscilloscope, vectorscope, spectroscope,
 			mode: CurrentDisplayMode::Oscilloscope,
 			channels: args.channels,
-			pause: false,
 		}
 	}
 }
@@ -75,7 +74,7 @@ impl App {
 			let data = source.recv()
 				.ok_or(io::Error::new(io::ErrorKind::BrokenPipe, "data source returned null"))?;
 	
-			if !self.pause {
+			if !self.graph.pause {
 				channels = fmt.oscilloscope(data, self.channels);
 			}
 	
@@ -98,7 +97,7 @@ impl App {
 					let mut size = f.size();
 					if self.graph.show_ui {
 						f.render_widget(
-							make_header(&self.graph, &self.current_display().header(&self.graph), self.current_display().mode_str(), framerate, self.pause),
+							make_header(&self.graph, &self.current_display().header(&self.graph), self.current_display().mode_str(), framerate, self.graph.pause),
 							Rect { x: size.x, y: size.y, width: size.width, height:1 } // a 1px line at the top
 						);
 						size.height -= 1;
@@ -157,7 +156,7 @@ impl App {
 				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Char('q') => quit = true,
-				KeyCode::Char(' ') => self.pause              = !self.pause,
+				KeyCode::Char(' ') => self.graph.pause        = !self.graph.pause,
 				KeyCode::Char('s') => self.graph.scatter      = !self.graph.scatter,
 				KeyCode::Char('h') => self.graph.show_ui      = !self.graph.show_ui,
 				KeyCode::Char('r') => self.graph.references   = !self.graph.references,

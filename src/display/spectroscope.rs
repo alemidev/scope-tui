@@ -16,6 +16,7 @@ pub struct Spectroscope {
 	pub average: u32,
 	pub buf: Vec<VecDeque<Vec<f64>>>,
 	pub window: bool,
+	pub log_y: bool,
 }
 
 fn magnitude(c: Complex<f64>) -> f64 {
@@ -43,6 +44,7 @@ impl DisplayMode for Spectroscope {
 			buffer_size: args.buffer / (2 * args.channels as u32),
 			average: 1, buf: Vec::new(),
 			window: false,
+			log_y: true,
 		}
 	}
 
@@ -76,7 +78,10 @@ impl DisplayMode for Spectroscope {
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis {
 		let (name, bounds) = match dimension {
 			Dimension::X => ("frequency -", [20.0f64.ln(), ((cfg.samples as f64 / cfg.width as f64) * 20000.0).ln()]),
-			Dimension::Y => ("| level", [0.0, cfg.scale as f64 / 10.0]), // TODO super arbitraty! wtf
+			Dimension::Y => (
+				if self.log_y { "| level" } else { "| amplitude" },
+				[0.0, if self.log_y { (cfg.scale as f64 / 10.0).ln() } else { cfg.scale as f64 / 10.0 }]),
+				// TODO super arbitraty! wtf! also ugly inline ifs, get this thing together!
 		};
 		let mut a = Axis::default();
 		if cfg.show_ui { // TODO don't make it necessary to check show_ui inside here
@@ -87,13 +92,15 @@ impl DisplayMode for Spectroscope {
 
 	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
 		if self.average == 0 { self.average = 1 } // otherwise fft breaks
-		for (i, chan) in data.iter().enumerate() {
-			if self.buf.len() <= i {
-				self.buf.push(VecDeque::new());
-			}
-			self.buf[i].push_back(chan.clone());
-			while self.buf[i].len() > self.average as usize {
-				self.buf[i].pop_front();
+		if !cfg.pause {
+			for (i, chan) in data.iter().enumerate() {
+				if self.buf.len() <= i {
+					self.buf.push(VecDeque::new());
+				}
+				self.buf[i].push_back(chan.clone());
+				while self.buf[i].len() > self.average as usize {
+					self.buf[i].pop_front();
+				}
 			}
 		}
 
@@ -113,7 +120,11 @@ impl DisplayMode for Spectroscope {
 			fft.process(tmp.as_mut_slice());
 			out.push(DataSet::new(
 				self.channel_name(n),
-				tmp[..=tmp.len() / 2].iter().enumerate().map(|(i,x)| ((i as f64 * resolution).ln(), magnitude(*x))).collect(),
+				tmp[..=tmp.len() / 2]
+					.iter()
+					.enumerate()
+					.map(|(i,x)| ((i as f64 * resolution).ln(), if self.log_y { magnitude(*x).ln() } else { magnitude(*x) }))
+					.collect(),
 				cfg.marker_type,
 				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
 				cfg.palette(n),
@@ -129,13 +140,14 @@ impl DisplayMode for Spectroscope {
 				KeyCode::PageUp   => update_value_i(&mut self.average, true, 1, 1., 1..65535),
 				KeyCode::PageDown => update_value_i(&mut self.average, false, 1, 1., 1..65535),
 				KeyCode::Char('w') => self.window = !self.window,
+				KeyCode::Char('l') => self.log_y = !self.log_y,
 				_ => {}
 			}
 		}
 	}
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
-		let s = cfg.scale as f64 / 10.0;
+		let s = if self.log_y { (cfg.scale as f64 / 10.0).ln() } else { cfg.scale as f64 / 10.0 };
 		vec![
 			DataSet::new("".into(), vec![(0.0, 0.0), ((cfg.samples as f64).ln(), 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
 
