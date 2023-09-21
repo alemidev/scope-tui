@@ -15,11 +15,25 @@ pub struct Spectroscope {
 	pub buffer_size: u32,
 	pub average: u32,
 	pub buf: Vec<VecDeque<Vec<f64>>>,
+	pub window: bool,
 }
 
-fn complex_to_magnitude(c: Complex<f64>) -> f64 {
+fn magnitude(c: Complex<f64>) -> f64 {
 	let squared = (c.re * c.re) + (c.im * c.im);
 	squared.sqrt()
+}
+
+// got this from https://github.com/phip1611/spectrum-analyzer/blob/3c079ec2785b031d304bb381ff5f5fe04e6bcf71/src/windows.rs#L40
+pub fn hann_window(samples: &[f64]) -> Vec<f64> {
+	let mut windowed_samples = Vec::with_capacity(samples.len());
+	let samples_len = samples.len() as f64;
+	for (i, sample) in samples.iter().enumerate() {
+		let two_pi_i = 2.0 * std::f64::consts::PI * i as f64;
+		let idontknowthename = (two_pi_i / samples_len).cos();
+		let multiplier = 0.5 * (1.0 - idontknowthename);
+		windowed_samples.push(sample * multiplier)
+	}
+	windowed_samples
 }
 
 impl DisplayMode for Spectroscope {
@@ -28,6 +42,7 @@ impl DisplayMode for Spectroscope {
 			sampling_rate: args.sample_rate,
 			buffer_size: args.buffer / (2 * args.channels as u32),
 			average: 1, buf: Vec::new(),
+			window: true,
 		}
 	}
 
@@ -44,14 +59,16 @@ impl DisplayMode for Spectroscope {
 	}
 
 	fn header(&self, _: &GraphConfig) -> String {
+		let window_marker = if self.window { "-|-" } else { "---" };
 		if self.average <= 1 {
-			format!("live  --  {:.3}Hz buckets", self.sampling_rate as f64 / self.buffer_size as f64)
+			format!("live  {}  {:.3}Hz bins", window_marker, self.sampling_rate as f64 / self.buffer_size as f64)
 		} else {
 			format!(
-				"{}x average ({:.1}s)  --  {:.3}Hz buckets",
+				"{}x avg ({:.1}s)  {}  {:.3}Hz bins",
 				self.average,
 				(self.average * self.buffer_size) as f64 / self.sampling_rate as f64,
-				self.sampling_rate as f64 / (self.buffer_size * self.average) as f64
+				window_marker,
+				self.sampling_rate as f64 / (self.buffer_size * self.average) as f64,
 			)
 		}
 	}
@@ -87,13 +104,16 @@ impl DisplayMode for Spectroscope {
 		let fft = planner.plan_fft_forward(sample_len as usize);
 
 		for (n, chan_queue) in self.buf.iter().enumerate().rev() {
-			let chunk = chan_queue.iter().flatten().collect::<Vec<&f64>>();
+			let mut chunk = chan_queue.iter().flatten().copied().collect::<Vec<f64>>();
+			if self.window {
+				chunk = hann_window(chunk.as_slice());
+			}
 			let max_val = chunk.iter().max_by(|a, b| a.total_cmp(b)).expect("empty dataset?");
 			let mut tmp : Vec<Complex<f64>> = chunk.iter().map(|x| Complex { re: *x / *max_val, im: 0.0 }).collect();
 			fft.process(tmp.as_mut_slice());
 			out.push(DataSet::new(
 				self.channel_name(n),
-				tmp[..=tmp.len() / 2].iter().enumerate().map(|(i,x)| ((i as f64 * resolution).ln(), complex_to_magnitude(*x))).collect(),
+				tmp[..=tmp.len() / 2].iter().enumerate().map(|(i,x)| ((i as f64 * resolution).ln(), magnitude(*x))).collect(),
 				cfg.marker_type,
 				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
 				cfg.palette(n),
@@ -108,6 +128,7 @@ impl DisplayMode for Spectroscope {
 			match key.code {
 				KeyCode::PageUp   => update_value_i(&mut self.average, true, 1, 1., 1..65535),
 				KeyCode::PageDown => update_value_i(&mut self.average, false, 1, 1., 1..65535),
+				KeyCode::Char('w') => self.window = !self.window,
 				_ => {}
 			}
 		}
