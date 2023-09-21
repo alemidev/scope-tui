@@ -66,6 +66,7 @@ impl DisplayMode for Oscilloscope {
 		let mut out = Vec::new();
 
 		let mut trigger_offset = 0;
+		if self.depth == 0 { self.depth = 1 }
 		if self.triggering {
 			for i in 0..data[0].len() {
 				if triggered(&data[0], i, self.threshold, self.depth, self.falling_edge) { // triggered
@@ -127,10 +128,10 @@ impl DisplayMode for Oscilloscope {
 				KeyCode::Char('t') => self.triggering   = !self.triggering,
 				KeyCode::Char('e') => self.falling_edge = !self.falling_edge,
 				KeyCode::Char('p') => self.peaks        = !self.peaks,
-				KeyCode::Char('=') => update_value_i(&mut self.depth, true, 1, 1.0, 0..65535),
-				KeyCode::Char('-') => update_value_i(&mut self.depth, false, 1, 1.0, 0..65535),
-				KeyCode::Char('+') => update_value_i(&mut self.depth, true, 10, 1.0, 0..65535),
-				KeyCode::Char('_') => update_value_i(&mut self.depth, false, 10, 1.0, 0..65535),
+				KeyCode::Char('=') => update_value_i(&mut self.depth, true, 1, 1.0, 1..65535),
+				KeyCode::Char('-') => update_value_i(&mut self.depth, false, 1, 1.0, 1..65535),
+				KeyCode::Char('+') => update_value_i(&mut self.depth, true, 10, 1.0, 1..65535),
+				KeyCode::Char('_') => update_value_i(&mut self.depth, false, 10, 1.0, 1..65535),
 				KeyCode::Esc => {
 					self.triggering = false;
 				},
@@ -140,7 +141,7 @@ impl DisplayMode for Oscilloscope {
 	}
 }
 
-// TODO can this be made nicer?
+#[allow(clippy::collapsible_else_if)] // TODO can this be made nicer?
 fn triggered(data: &[f64], index: usize, threshold: f64, depth: u32, falling_edge:bool) -> bool {
 	if data.len() < index + (1+depth as usize) { return false; }
 	if falling_edge {
@@ -154,14 +155,16 @@ fn triggered(data: &[f64], index: usize, threshold: f64, depth: u32, falling_edg
 		} else {
 			false
 		}
-	} else if data[index] <= threshold {
-		for i in 1..=depth as usize {
-			if data[index+i] <= threshold {
-				return false;
-			}
-		}
-		true
 	} else {
-		false
+		if data[index] <= threshold {
+			for i in 1..=depth as usize {
+				if data[index+i] <= threshold {
+					return false;
+				}
+			}
+			true
+		} else {
+			false
+		}
 	}
 }

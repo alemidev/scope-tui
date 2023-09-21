@@ -152,10 +152,10 @@ impl App {
 				_ => 1.0,
 			};
 			match key.code {
-				KeyCode::Up       => update_value_i(&mut self.graph.scale, true, 250, magnitude, 0..32768), // inverted to act as zoom
-				KeyCode::Down     => update_value_i(&mut self.graph.scale, false, 250, magnitude, 0..32768), // inverted to act as zoom
-				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*10),
-				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*10),
+				KeyCode::Up       => update_value_i(&mut self.graph.scale, true, 250, magnitude, 0..65535), // inverted to act as zoom
+				KeyCode::Down     => update_value_i(&mut self.graph.scale, false, 250, magnitude, 0..65535), // inverted to act as zoom
+				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*2),
+				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Char('q') => quit = true,
 				KeyCode::Char(' ') => self.pause              = !self.pause,
 				KeyCode::Char('s') => self.graph.scatter      = !self.graph.scatter,
