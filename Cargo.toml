@@ -27,3 +27,10 @@ libpulse-simple-binding = { version = "2.25", optional = true }
 default    = ["tui", "pulseaudio"]
 tui        = ["dep:ratatui", "dep:crossterm"]
 pulseaudio = ["dep:libpulse-binding", "dep:libpulse-simple-binding"]
+
+[profile.release]    # make small binaries! will take quite longer, from https://github.com/johnthagen/min-sized-rust
+opt-level = 'z'      # optimize for size
+lto = true           # enable Link Time Optimisation: don't link unused stuff
+codegen-units = 1    # reducing codegen units slows it down but allows for better optimization
+panic = 'abort'      # abort on panic: don't include code to show what went wrong in release
+strip = "symbols"    # strip symbols from binary: have fun debugging on prod! :)
