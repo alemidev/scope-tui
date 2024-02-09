@@ -16,22 +16,21 @@ Currently no binaries or packages are available and you must compile this yourse
 
 If you don't have the rust toolchain already installed, get it with [rustup](https://rustup.rs/)
 
-Once you have `rustc` and `cargo` installed, clone this repository and compile with cargo:
+Once you have `rustc` and `cargo`, just use `cargo install`:
 ```bash
-$ git clone https://github.com/alemidev/scope-tui
-$ cd scope-tui
-$ cargo build --release --all-features
+$ CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git https://git.alemi.dev/scope-tui.git
 ```
+_(note that my git server doesn't support smart http clones, setting fetch-with-cli allows dumb http clones)_
 
-The resulting binary will be under `./target/release/scope-tui`. Copy it in your PATH or use it from there.
+The resulting binary will be under `$HOME./cargo/bin`. Either add such folder to your `$PATH` or copy the resulting binary somewhere in your `$PATH`.
 
 ## Sources
-A very crude file source is available, which can be a named pipe. While this allows connecting `scope-tui` to a lot of things, it's not super convenient, and more specialized sources should be used when available.
+A very crude file source is always available, which can be a named pipe. While this allows connecting `scope-tui` to a lot of things, it's not super convenient, and more specialized sources should be used when available.
 
 Currently only the PulseAudio source on Linux has been implemented, but more are planned for the future thanks to the modular sources structure.
 
-By default only the file source will be built into `scope-tui`. Enable all sources by passing the `--all-features` flag when compiling, or enable specific features:
- * `pulseaudio` : pulseaudio implementation with LibPulse Simple bindings
+Enable sources by passing the respective feature flags while compiling: `--features=pulseaudio,...`. Disable default features with `--no-default-features`. 
+ * `pulseaudio` : pulseaudio implementation with LibPulse Simple bindings **(enabled by default)**
 
 
 # Usage
