@@ -221,16 +221,16 @@ fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, kind_o_scope: &'st
 					Cell::from(if pause { "||" } else { "|>" }),
 				]
 			)
+		],
+		vec![
+			Constraint::Percentage(35),
+			Constraint::Percentage(25),
+			Constraint::Percentage(7),
+			Constraint::Percentage(13),
+			Constraint::Percentage(6),
+			Constraint::Percentage(6),
+			Constraint::Percentage(6)
 		]
 	)
 	.style(Style::default().fg(cfg.labels_color))
-	.widths(&[
-		Constraint::Percentage(35),
-		Constraint::Percentage(25),
-		Constraint::Percentage(7),
-		Constraint::Percentage(13),
-		Constraint::Percentage(6),
-		Constraint::Percentage(6),
-		Constraint::Percentage(6)
-	])
 }
