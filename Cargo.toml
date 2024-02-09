@@ -24,6 +24,6 @@ libpulse-binding = { version = "2.0", optional = true }
 libpulse-simple-binding = { version = "2.25", optional = true }
 
 [features]
-default    = ["tui"]
+default    = ["tui", "pulseaudio"]
 tui        = ["dep:ratatui", "dep:crossterm"]
 pulseaudio = ["dep:libpulse-binding", "dep:libpulse-simple-binding"]
