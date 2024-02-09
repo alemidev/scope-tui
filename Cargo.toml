@@ -17,8 +17,8 @@ derive_more = "0.99.17"
 thiserror = "1.0.48"
 rustfft = "6.1.0"
 # for TUI backend
-ratatui = { version = "0.23.0", features = ["all-widgets"], optional = true }
-crossterm = { version = "0.25", optional = true }
+ratatui = { version = "0.26", features = ["all-widgets"], optional = true }
+crossterm = { version = "0.27", optional = true }
 # for pulseaudio
 libpulse-binding = { version = "2.0", optional = true }
 libpulse-simple-binding = { version = "2.25", optional = true }

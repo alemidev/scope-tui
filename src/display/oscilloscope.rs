@@ -58,7 +58,7 @@ impl DisplayMode for Oscilloscope {
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
 		vec![
-			DataSet::new("".into(), vec![(0.0, 0.0), (cfg.samples as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(0.0, 0.0), (cfg.samples as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color),
 		]
 	}
 
@@ -78,7 +78,7 @@ impl DisplayMode for Oscilloscope {
 		}
 
 		if self.triggering {
-			out.push(DataSet::new("T".into(), vec![(0.0, self.threshold)], cfg.marker_type, GraphType::Scatter, cfg.labels_color));
+			out.push(DataSet::new(Some("T".into()), vec![(0.0, self.threshold)], cfg.marker_type, GraphType::Scatter, cfg.labels_color));
 		}
 
 		for (n, channel) in data.iter().enumerate().rev() {
@@ -94,7 +94,7 @@ impl DisplayMode for Oscilloscope {
 
 			if self.peaks {
 				out.push(DataSet::new(
-					"".into(),
+					None,
 					vec![(0.0, min), (0.0, max)],
 					cfg.marker_type,
 					GraphType::Scatter,
@@ -103,7 +103,7 @@ impl DisplayMode for Oscilloscope {
 			}
 
 			out.push(DataSet::new(
-				self.channel_name(n),
+				Some(self.channel_name(n)),
 				tmp,
 				cfg.marker_type,
 				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },

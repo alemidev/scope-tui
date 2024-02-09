@@ -47,7 +47,7 @@ pub trait DisplayMode {
 }
 
 pub struct DataSet {
-	name: String,
+	name: Option<String>,
 	data: Vec<(f64, f64)>,
 	marker_type: Marker,
 	graph_type: GraphType,
@@ -56,8 +56,11 @@ pub struct DataSet {
 
 impl<'a> From::<&'a DataSet> for Dataset<'a> {
 	fn from(ds: &'a DataSet) -> Dataset<'a> {
-		Dataset::default()
-			.name(ds.name.clone())
+		let mut out = Dataset::default(); // TODO creating a binding is kinda ugly, is it avoidable?
+		if let Some(name) = &ds.name {
+			out = out.name(name.clone());
+		}
+		out
 			.marker(ds.marker_type)
 			.graph_type(ds.graph_type)
 			.style(Style::default().fg(ds.color))
@@ -65,9 +68,10 @@ impl<'a> From::<&'a DataSet> for Dataset<'a> {
 		}
 }
 
+// TODO this is pretty ugly but I need datasets which own the data
 impl DataSet {
 	pub fn new(
-		name: String,
+		name: Option<String>,
 		data: Vec<(f64, f64)>,
 		marker_type: Marker,
 		graph_type: GraphType,

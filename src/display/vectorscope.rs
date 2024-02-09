@@ -36,8 +36,8 @@ impl DisplayMode for Vectorscope {
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
 		vec![
-			DataSet::new("".into(), vec![(-(cfg.scale as f64), 0.0), (cfg.scale as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
-			DataSet::new("".into(), vec![(0.0, -(cfg.scale as f64)), (0.0, cfg.scale as f64)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(-(cfg.scale as f64), 0.0), (cfg.scale as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
+			DataSet::new(None, vec![(0.0, -(cfg.scale as f64)), (0.0, cfg.scale as f64)], cfg.marker_type, GraphType::Line, cfg.axis_color),
 		]
 	}
 
@@ -65,14 +65,14 @@ impl DisplayMode for Vectorscope {
 			// TODO configure splitting in multiple parts?
 			let pivot = tmp.len() / 2;
 			out.push(DataSet::new(
-				self.channel_name((n * 2) + 1),
+				Some(self.channel_name((n * 2) + 1)),
 				tmp[pivot..].to_vec(),
 				cfg.marker_type,
 				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
 				cfg.palette((n * 2) + 1),
 			));
 			out.push(DataSet::new(
-				self.channel_name(n * 2),
+				Some(self.channel_name(n * 2)),
 				tmp[..pivot].to_vec(),
 				cfg.marker_type,
 				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
