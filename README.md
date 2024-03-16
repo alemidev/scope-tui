@@ -18,7 +18,11 @@ If you don't have the rust toolchain already installed, get it with [rustup](htt
 
 Once you have `rustc` and `cargo`, just use `cargo install`:
 ```bash
+# either from my source repository
 $ CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git https://git.alemi.dev/scope-tui.git
+
+# or from crates.io
+$ cargo install scope-tui
 ```
 _(note that my git server doesn't support smart http clones, setting fetch-with-cli allows dumb http clones)_
 
