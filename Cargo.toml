@@ -5,6 +5,7 @@ edition = "2021"
 authors = [ "alemi <me@alemi.dev>" ]
 description = "A simple oscilloscope/vectorscope/spectroscope for your terminal"
 license = "MIT"
+license-file = "LICENSE"
 keywords = ["cli", "tui", "audio", "visualization", "scope"]
 repository = "https://git.alemi.dev/scope-tui.git"
 readme = "README.md"
