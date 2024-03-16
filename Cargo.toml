@@ -4,11 +4,10 @@ version = "0.3.0"
 edition = "2021"
 authors = [ "alemi <me@alemi.dev>" ]
 description = "A simple oscilloscope/vectorscope/spectroscope for your terminal"
-keywords = ["tui", "terminal", "audio", "visualization", "scope", "dashboard", "oscilloscope", "spectroscope"]
-repository = "https://github.com/alemidev/scope-tui"
+license = "MIT"
+keywords = ["cli", "tui", "terminal", "audio", "visualization", "scope", "oscilloscope", "spectroscope"]
+repository = "https://git.alemi.dev/scope-tui.git"
 readme = "README.md"
-# documentation =
-# license = 
 
 
 [dependencies]
