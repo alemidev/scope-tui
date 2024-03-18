@@ -80,8 +80,9 @@ impl DisplayMode for Spectroscope {
 			Dimension::X => ("frequency -", [20.0f64.ln(), ((cfg.samples as f64 / cfg.width as f64) * 20000.0).ln()]),
 			Dimension::Y => (
 				if self.log_y { "| level" } else { "| amplitude" },
-				[0.0, if self.log_y { (cfg.scale as f64 / 10.0).ln() } else { cfg.scale as f64 / 10.0 }]),
-				// TODO super arbitraty! wtf! also ugly inline ifs, get this thing together!
+				[if self.log_y { -(cfg.scale * 5.0) } else { 0.0 }, cfg.scale * 5.0]
+			),
+			// TODO super arbitraty! wtf! also ugly inline ifs, get this thing together!
 		};
 		let mut a = Axis::default();
 		if cfg.show_ui { // TODO don't make it necessary to check show_ui inside here
@@ -148,39 +149,40 @@ impl DisplayMode for Spectroscope {
 	}
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
-		let s = if self.log_y { (cfg.scale as f64 / 10.0).ln() } else { cfg.scale as f64 / 10.0 };
+		let lower = if self.log_y { -(cfg.scale * 5.) } else { 0. };
+		let upper = cfg.scale * 10.;
 		vec![
 			DataSet::new(None, vec![(0.0, 0.0), ((cfg.samples as f64).ln(), 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
 
 			// TODO can we auto generate these? lol...
-			DataSet::new(None, vec![(20.0f64.ln(), 0.0), (20.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(30.0f64.ln(), 0.0), (30.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(40.0f64.ln(), 0.0), (40.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(50.0f64.ln(), 0.0), (50.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(60.0f64.ln(), 0.0), (60.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(70.0f64.ln(), 0.0), (70.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(80.0f64.ln(), 0.0), (80.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(90.0f64.ln(), 0.0), (90.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(100.0f64.ln(), 0.0), (100.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(200.0f64.ln(), 0.0), (200.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(300.0f64.ln(), 0.0), (300.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(400.0f64.ln(), 0.0), (400.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(500.0f64.ln(), 0.0), (500.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(600.0f64.ln(), 0.0), (600.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(700.0f64.ln(), 0.0), (700.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(800.0f64.ln(), 0.0), (800.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(900.0f64.ln(), 0.0), (900.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(1000.0f64.ln(), 0.0), (1000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(2000.0f64.ln(), 0.0), (2000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(3000.0f64.ln(), 0.0), (3000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(4000.0f64.ln(), 0.0), (4000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(5000.0f64.ln(), 0.0), (5000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(6000.0f64.ln(), 0.0), (6000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(7000.0f64.ln(), 0.0), (7000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(8000.0f64.ln(), 0.0), (8000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(9000.0f64.ln(), 0.0), (9000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(10000.0f64.ln(), 0.0), (10000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
-			DataSet::new(None, vec![(20000.0f64.ln(), 0.0), (20000.0f64.ln(), s)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(20.0f64.ln(), lower), (20.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(30.0f64.ln(), lower), (30.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(40.0f64.ln(), lower), (40.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(50.0f64.ln(), lower), (50.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(60.0f64.ln(), lower), (60.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(70.0f64.ln(), lower), (70.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(80.0f64.ln(), lower), (80.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(90.0f64.ln(), lower), (90.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(100.0f64.ln(), lower), (100.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(200.0f64.ln(), lower), (200.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(300.0f64.ln(), lower), (300.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(400.0f64.ln(), lower), (400.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(500.0f64.ln(), lower), (500.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(600.0f64.ln(), lower), (600.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(700.0f64.ln(), lower), (700.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(800.0f64.ln(), lower), (800.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(900.0f64.ln(), lower), (900.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(1000.0f64.ln(), lower), (1000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(2000.0f64.ln(), lower), (2000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(3000.0f64.ln(), lower), (3000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(4000.0f64.ln(), lower), (4000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(5000.0f64.ln(), lower), (5000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(6000.0f64.ln(), lower), (6000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(7000.0f64.ln(), lower), (7000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(8000.0f64.ln(), lower), (8000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(9000.0f64.ln(), lower), (9000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(10000.0f64.ln(), lower), (10000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(20000.0f64.ln(), lower), (20000.0f64.ln(), upper)], cfg.marker_type, GraphType::Line, cfg.axis_color),
 		]
 	}
 }
