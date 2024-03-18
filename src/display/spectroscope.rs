@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crossterm::event::{Event, KeyCode};
 use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
 
-use crate::app::update_value_i;
+use crate::{app::update_value_i, input::Matrix};
 
 use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 
@@ -90,7 +90,7 @@ impl DisplayMode for Spectroscope {
 		a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
 	}
 
-	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {
 		if self.average == 0 { self.average = 1 } // otherwise fft breaks
 		if !cfg.pause {
 			for (i, chan) in data.iter().enumerate() {

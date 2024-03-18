@@ -1,7 +1,6 @@
-mod parser;
 mod app;
 mod music;
-mod source;
+mod input;
 mod display;
 
 use app::App;
@@ -37,23 +36,23 @@ pub struct ScopeArgs {
 
 	/// number of channels to open
 	#[arg(long, value_name = "N", default_value_t = 2)]
-	channels: u8,
+	channels: usize,
 
 	/// tune buffer size to be in tune with given note (overrides buffer option)
 	#[arg(long, value_name = "NOTE")]
 	tune: Option<String>,
 
 	/// size of audio buffer, and width of scope
-	#[arg(short, long, value_name = "SIZE", default_value_t = 8192)]
+	#[arg(short, long, value_name = "SIZE", default_value_t = 2048)]
 	buffer: u32,
 
 	/// sample rate to use
-	#[arg(long, value_name = "HZ", default_value_t = 44100)]
+	#[arg(long, value_name = "HZ", default_value_t = 48000)]
 	sample_rate: u32,
 
-	/// max value, positive and negative, on amplitude scale
-	#[arg(short, long, value_name = "SIZE", default_value_t = 20000)]
-	range: u32, // TODO counterintuitive, improve this
+	/// floating point vertical scale, from 0 to 1
+	#[arg(short, long, value_name = "x", default_value_t = 1.0)]
+	scale: f32,
 
 	/// use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]
@@ -90,7 +89,21 @@ pub enum ScopeSource {
 	File {
 		/// path on filesystem of file or pipe
 		path: String,
+
+		/// limit data flow to match requested sample rate (UNIMPLEMENTED)
+		#[arg(short, long, default_value_t = false)]
+		limit_rate: bool,
 	},
+
+	/// use new experimental CPAL backend
+	Audio {
+		/// source device to attach to
+		device: Option<String>,
+
+		/// timeout (in seconds) waiting for audio stream
+		#[arg(long, default_value_t = 60)]
+		timeout: u64,
+	}
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -111,19 +124,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		#[cfg(feature = "pulseaudio")]
 		ScopeSource::Pulse { device, server_buffer } => {
-			source::pulseaudio::PulseAudioSimpleDataSource::new(
+			input::pulse::PulseAudioSimpleDataSource::new(
 				device.as_deref(),
-				args.channels,
+				args.channels as u8,
 				args.sample_rate,
 				args.buffer,
 				*server_buffer,
 			)?
 		},
 
-		ScopeSource::File { path } => {
-			source::file::FileSource::new(path, args.buffer)?
+		ScopeSource::File { path, limit_rate } => {
+			input::file::FileSource::new(
+				path,
+				args.channels,
+				args.sample_rate as usize,
+				args.buffer as usize,
+				*limit_rate
+			)?
 		},
 
+		ScopeSource::Audio { device, timeout } => {
+			input::cpal::DefaultAudioDeviceWithCPAL::new(
+				device.as_deref(),
+				args.channels as u32,
+				args.sample_rate,
+				args.buffer,
+				*timeout,
+			)?
+		}
 	};
 
 	let mut app = App::from(&args);

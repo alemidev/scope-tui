@@ -1,7 +1,7 @@
 use crossterm::event::{Event, KeyModifiers, KeyCode};
 use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
 
-use crate::app::{update_value_f, update_value_i};
+use crate::{app::{update_value_f, update_value_i}, input::Matrix};
 
 use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 
@@ -47,7 +47,7 @@ impl DisplayMode for Oscilloscope {
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis {
 		let (name, bounds) = match dimension {
 			Dimension::X => ("time -", [0.0, cfg.samples as f64]),
-			Dimension::Y => ("| amplitude", [-(cfg.scale as f64), cfg.scale as f64]),
+			Dimension::Y => ("| amplitude", [-cfg.scale, cfg.scale]),
 		};
 		let mut a = Axis::default();
 		if cfg.show_ui { // TODO don't make it necessary to check show_ui inside here
@@ -62,7 +62,7 @@ impl DisplayMode for Oscilloscope {
 		]
 	}
 
-	fn process(&mut self, cfg: &GraphConfig, data: &Vec<Vec<f64>>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {
 		let mut out = Vec::new();
 
 		let mut trigger_offset = 0;
@@ -71,9 +71,8 @@ impl DisplayMode for Oscilloscope {
 			for i in 0..data[0].len() {
 				if triggered(&data[0], i, self.threshold, self.depth, self.falling_edge) { // triggered
 					break;
-				} else {
-					trigger_offset += 1;
 				}
+				trigger_offset += 1;
 			}
 		}
 

@@ -68,7 +68,7 @@ impl Note {
 	pub fn tune_buffer_size(&self, sample_rate: u32) -> u32 {
 		let t = 1.0 / self.tone.freq(self.octave); // periodo ?
 		let buf = (sample_rate as f32) * t;
-		(buf * 4.0).round() as u32
+		buf.round() as u32
 	}
 }
 

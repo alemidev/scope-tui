@@ -1,5 +1,5 @@
 
-use std::{io, time::{Duration, Instant}, ops::Range};
+use std::{io, ops::Range, time::{Duration, Instant}};
 use ratatui::{
 	style::Color, widgets::{Table, Row, Cell}, symbols::Marker,
 	backend::Backend,
@@ -8,8 +8,7 @@ use ratatui::{
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 
-use crate::{source::DataSource, display::{GraphConfig, oscilloscope::Oscilloscope, DisplayMode, Dimension, vectorscope::Vectorscope, spectroscope::Spectroscope}};
-use crate::parser::{SampleParser, Signed16PCM};
+use crate::{display::{oscilloscope::Oscilloscope, spectroscope::Spectroscope, vectorscope::Vectorscope, Dimension, DisplayMode, GraphConfig}, input::{Matrix, DataSource}};
 
 pub enum CurrentDisplayMode {
 	Oscilloscope,
@@ -18,7 +17,7 @@ pub enum CurrentDisplayMode {
 }
 
 pub struct App {
-	channels: u8,
+	#[allow(unused)] channels: u8,
 	graph: GraphConfig,
 	oscilloscope: Oscilloscope,
 	vectorscope: Vectorscope,
@@ -33,9 +32,9 @@ impl From::<&crate::ScopeArgs> for App {
 			axis_color: Color::DarkGray,
 			labels_color: Color::Cyan,
 			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
-			scale: args.range,
-			width: args.buffer / (2 * args.channels as u32), // TODO also make bit depth customizable
-			samples: args.buffer / (2 * args.channels as u32),
+			scale: args.scale as f64,
+			width: args.buffer, // TODO also make bit depth customizable
+			samples: args.buffer,
 			sampling_rate: args.sample_rate,
 			references: !args.no_reference,
 			show_ui: !args.no_ui,
@@ -55,27 +54,24 @@ impl From::<&crate::ScopeArgs> for App {
 		App { 
 			graph, oscilloscope, vectorscope, spectroscope,
 			mode: CurrentDisplayMode::Oscilloscope,
-			channels: args.channels,
+			channels: args.channels as u8,
 		}
 	}
 }
 
 impl App {
-	pub fn run<T : Backend>(&mut self, mut source: Box<dyn DataSource>, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
-		// prepare globals
-		let fmt = Signed16PCM{}; // TODO some way to choose this?
-	
+	pub fn run<T : Backend>(&mut self, mut source: Box<dyn DataSource<f64>>, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
 		let mut last_poll = Instant::now();
-		let mut channels = vec![];
+		let mut channels = Matrix::default();
 	
 		loop {
 			let data = source.recv()
 				.ok_or(io::Error::new(io::ErrorKind::BrokenPipe, "data source returned null"))?;
 	
 			if !self.graph.pause {
-				channels = fmt.oscilloscope(data, self.channels);
+				channels = data;
 			}
 	
 			fps += 1;
@@ -107,7 +103,7 @@ impl App {
 						.x_axis(self.current_display().axis(&self.graph, Dimension::X)) // TODO allow to have axis sometimes?
 						.y_axis(self.current_display().axis(&self.graph, Dimension::Y));
 					f.render_widget(chart, size)
-				}).unwrap();
+				})?;
 			}
 
 			while event::poll(Duration::from_millis(0))? { // process all enqueued events
@@ -151,8 +147,8 @@ impl App {
 				_ => 1.0,
 			};
 			match key.code {
-				KeyCode::Up       => update_value_i(&mut self.graph.scale, true, 250, magnitude, 0..65535), // inverted to act as zoom
-				KeyCode::Down     => update_value_i(&mut self.graph.scale, false, 250, magnitude, 0..65535), // inverted to act as zoom
+				KeyCode::Up       => update_value_f(&mut self.graph.scale,  0.01, magnitude, 0.0..1.5), // inverted to act as zoom
+				KeyCode::Down     => update_value_f(&mut self.graph.scale, -0.01, magnitude, 0.0..1.5), // inverted to act as zoom
 				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Char('q') => quit = true,
@@ -169,7 +165,7 @@ impl App {
 				},
 				KeyCode::Esc => {
 					self.graph.samples = self.graph.width;
-					self.graph.scale = 20000;
+					self.graph.scale = 1.;
 				},
 				_ => {},
 			}
@@ -212,9 +208,9 @@ fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, kind_o_scope: &'st
 		vec![
 			Row::new(
 				vec![
-					Cell::from(format!("{}::scope-tui", kind_o_scope)).style(Style::default().fg(*cfg.palette.get(0).expect("empty palette?")).add_modifier(Modifier::BOLD)),
+					Cell::from(format!("{}::scope-tui", kind_o_scope)).style(Style::default().fg(*cfg.palette.first().expect("empty palette?")).add_modifier(Modifier::BOLD)),
 					Cell::from(module_header),
-					Cell::from(format!("-{}+", cfg.scale)),
+					Cell::from(format!("-{:.2}x+", cfg.scale)),
 					Cell::from(format!("{}/{} spf", cfg.samples, cfg.width)),
 					Cell::from(format!("{}fps", fps)),
 					Cell::from(if cfg.scatter { "***" } else { "---" }),
