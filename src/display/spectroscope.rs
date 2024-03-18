@@ -80,7 +80,7 @@ impl DisplayMode for Spectroscope {
 			Dimension::X => ("frequency -", [20.0f64.ln(), ((cfg.samples as f64 / cfg.width as f64) * 20000.0).ln()]),
 			Dimension::Y => (
 				if self.log_y { "| level" } else { "| amplitude" },
-				[if self.log_y { -(cfg.scale * 5.0) } else { 0.0 }, cfg.scale * 5.0]
+				[if self.log_y { 0. } else { 0.0 }, cfg.scale * 7.5] // very arbitrary but good default
 			),
 			// TODO super arbitraty! wtf! also ugly inline ifs, get this thing together!
 		};
@@ -149,8 +149,8 @@ impl DisplayMode for Spectroscope {
 	}
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
-		let lower = if self.log_y { -(cfg.scale * 5.) } else { 0. };
-		let upper = cfg.scale * 10.;
+		let lower = 0.; // if self.log_y { -(cfg.scale * 5.) } else { 0. };
+		let upper = cfg.scale * 7.5;
 		vec![
 			DataSet::new(None, vec![(0.0, 0.0), ((cfg.samples as f64).ln(), 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
 
