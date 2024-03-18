@@ -25,7 +25,7 @@ pub enum AudioDeviceErrors {
 }
 
 impl DefaultAudioDeviceWithCPAL {
-	pub fn new(device: Option<&str>, channels: u32, sample_rate: u32, buffer: u32, timeout_secs: u64) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
+	pub fn new(device: Option<&str>, opts: &crate::cfg::SourceOptions, timeout_secs: u64) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
 		let host = cpal::default_host();
 		let device = match device {
 			Some(name) => host
@@ -37,14 +37,15 @@ impl DefaultAudioDeviceWithCPAL {
 				.ok_or(AudioDeviceErrors::NotFound)?,
 		};
 		let cfg = cpal::StreamConfig {
-			channels: channels as u16,
-			buffer_size: cpal::BufferSize::Fixed(buffer * channels * 2),
-			sample_rate: cpal::SampleRate(sample_rate),
+			channels: opts.channels as u16,
+			buffer_size: cpal::BufferSize::Fixed(opts.buffer * opts.channels as u32 * 2),
+			sample_rate: cpal::SampleRate(opts.sample_rate),
 		};
 		let (tx, rx) = mpsc::channel();
+		let channels = opts.channels; 
 		let stream = device.build_input_stream(
 			&cfg,
-			move |data:&[f32], _info| tx.send(stream_to_matrix(data.iter().cloned(), channels as usize, 1.)).unwrap_or(()),
+			move |data:&[f32], _info| tx.send(stream_to_matrix(data.iter().cloned(), channels, 1.)).unwrap_or(()),
 			|e| eprintln!("error in input stream: {e}"),
 			Some(std::time::Duration::from_secs(timeout_secs)),
 		)?;

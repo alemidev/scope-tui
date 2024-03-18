@@ -26,40 +26,38 @@ pub struct App {
 }
 
 // TODO another way to build this that doesn't require getting cli args directly!!!
-impl From::<&crate::ScopeArgs> for App {
-	fn from(args: &crate::ScopeArgs) -> Self {
+impl App {
+	pub fn new(ui: &crate::cfg::UiOptions, source: &crate::cfg::SourceOptions) -> Self {
 		let graph = GraphConfig {
 			axis_color: Color::DarkGray,
 			labels_color: Color::Cyan,
 			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
-			scale: args.scale as f64,
-			width: args.buffer, // TODO also make bit depth customizable
-			samples: args.buffer,
-			sampling_rate: args.sample_rate,
-			references: !args.no_reference,
-			show_ui: !args.no_ui,
-			scatter: args.scatter,
+			scale: ui.scale as f64,
+			width: source.buffer, // TODO also make bit depth customizable
+			samples: source.buffer,
+			sampling_rate: source.sample_rate,
+			references: !ui.no_reference,
+			show_ui: !ui.no_ui,
+			scatter: ui.scatter,
 			pause: false,
-			marker_type: if args.no_braille {
+			marker_type: if ui.no_braille {
 				Marker::Dot
 			} else {
 				Marker::Braille
 			},
 		};
 
-		let oscilloscope = Oscilloscope::from_args(args);
-		let vectorscope = Vectorscope::from_args(args);
-		let spectroscope = Spectroscope::from_args(args);
+		let oscilloscope = Oscilloscope::from_args(source);
+		let vectorscope = Vectorscope::from_args(source);
+		let spectroscope = Spectroscope::from_args(source);
 
 		App { 
 			graph, oscilloscope, vectorscope, spectroscope,
 			mode: CurrentDisplayMode::Oscilloscope,
-			channels: args.channels as u8,
+			channels: source.channels as u8,
 		}
 	}
-}
 
-impl App {
 	pub fn run<T : Backend>(&mut self, mut source: Box<dyn DataSource<f64>>, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
@@ -147,8 +145,8 @@ impl App {
 				_ => 1.0,
 			};
 			match key.code {
-				KeyCode::Up       => update_value_f(&mut self.graph.scale,  0.01, magnitude, 0.0..1.5), // inverted to act as zoom
-				KeyCode::Down     => update_value_f(&mut self.graph.scale, -0.01, magnitude, 0.0..1.5), // inverted to act as zoom
+				KeyCode::Up       => update_value_f(&mut self.graph.scale,  0.01, magnitude, 0.0..10.0), // inverted to act as zoom
+				KeyCode::Down     => update_value_f(&mut self.graph.scale, -0.01, magnitude, 0.0..10.0), // inverted to act as zoom
 				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*2),
 				KeyCode::Char('q') => quit = true,

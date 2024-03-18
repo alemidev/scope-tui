@@ -38,10 +38,10 @@ pub fn hann_window(samples: &[f64]) -> Vec<f64> {
 }
 
 impl DisplayMode for Spectroscope {
-	fn from_args(args: &crate::ScopeArgs) -> Self {
+	fn from_args(opts: &crate::cfg::SourceOptions) -> Self {
 		Spectroscope {
-			sampling_rate: args.sample_rate,
-			buffer_size: args.buffer / (2 * args.channels as u32),
+			sampling_rate: opts.sample_rate,
+			buffer_size: opts.buffer,
 			average: 1, buf: Vec::new(),
 			window: false,
 			log_y: true,

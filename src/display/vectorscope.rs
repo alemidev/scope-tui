@@ -8,7 +8,7 @@ use super::{DisplayMode, GraphConfig, DataSet, Dimension};
 pub struct Vectorscope {}
 
 impl DisplayMode for Vectorscope {
-	fn from_args(_args: &crate::ScopeArgs) -> Self {
+	fn from_args(_opts: &crate::cfg::SourceOptions) -> Self {
 		Vectorscope::default()
 	}
 
@@ -26,8 +26,8 @@ impl DisplayMode for Vectorscope {
 
 	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis {
 		let (name, bounds) = match dimension {
-			Dimension::X => ("left -", [-(cfg.scale as f64), cfg.scale as f64]),
-			Dimension::Y => ("| right", [-(cfg.scale as f64), cfg.scale as f64]),
+			Dimension::X => ("left -", [-cfg.scale, cfg.scale]),
+			Dimension::Y => ("| right", [-cfg.scale, cfg.scale]),
 		};
 		let mut a = Axis::default();
 		if cfg.show_ui { // TODO don't make it necessary to check show_ui inside here
@@ -38,8 +38,8 @@ impl DisplayMode for Vectorscope {
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
 		vec![
-			DataSet::new(None, vec![(-(cfg.scale as f64), 0.0), (cfg.scale as f64, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
-			DataSet::new(None, vec![(0.0, -(cfg.scale as f64)), (0.0, cfg.scale as f64)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(None, vec![(-cfg.scale, 0.0), (cfg.scale, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
+			DataSet::new(None, vec![(0.0, -cfg.scale), (0.0, cfg.scale)], cfg.marker_type, GraphType::Line, cfg.axis_color),
 		]
 	}
 

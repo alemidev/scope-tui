@@ -15,7 +15,7 @@ pub struct Oscilloscope {
 }
 
 impl DisplayMode for Oscilloscope {
-	fn from_args(_args: &crate::ScopeArgs) -> Self {
+	fn from_args(_opts: &crate::cfg::SourceOptions) -> Self {
 		Oscilloscope::default()
 	}
 

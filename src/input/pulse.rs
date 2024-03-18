@@ -11,19 +11,18 @@ pub struct PulseAudioSimpleDataSource {
 
 impl PulseAudioSimpleDataSource {
 	#[allow(clippy::new_ret_no_self)]
-	pub fn new(
-		device: Option<&str>, channels: u8, rate: u32, buffer: u32, server_buffer: u32
-	) -> Result<Box<dyn super::DataSource<f64>>, PAErr> {
+	pub fn new(device: Option<&str>, opts: &crate::cfg::SourceOptions, server_buffer: u32) -> Result<Box<dyn super::DataSource<f64>>, PAErr> {
 		let spec = Spec {
 			format: Format::S16NE, // TODO allow more formats?
-			channels, rate,
+			channels: opts.channels as u8,
+			rate: opts.sample_rate,
 		};
 		if !spec.is_valid() {
 			return Err(PAErr(0)); // TODO what error number should we throw?
 		}
 		let attrs = BufferAttr {
-			maxlength: server_buffer * buffer * channels as u32 * 2,
-			fragsize: buffer,
+			maxlength: server_buffer * opts.buffer * opts.channels as u32 * 2,
+			fragsize: opts.buffer,
 			..Default::default()
 		};
 		let simple = Simple::new(
@@ -38,8 +37,8 @@ impl PulseAudioSimpleDataSource {
 		)?;
 		Ok(Box::new(Self {
 			simple,
-			buffer: vec![0; buffer as usize * channels as usize * 2],
-			channels: channels as usize
+			buffer: vec![0; opts.buffer as usize * opts.channels * 2],
+			channels: opts.channels
 		}))
 	}
 }

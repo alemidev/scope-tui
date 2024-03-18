@@ -15,12 +15,14 @@ pub struct FileSource {
 
 impl FileSource {
 	#[allow(clippy::new_ret_no_self)]
-	pub fn new(path: &str, channels: usize, sample_rate: usize, buffer: usize, limit_rate: bool) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
+	pub fn new(path: &str, opts: &crate::cfg::SourceOptions, limit_rate: bool) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
 		Ok(Box::new(
 			FileSource {
-				channels, sample_rate, limit_rate,
+				channels: opts.channels,
+				sample_rate: opts.sample_rate as usize,
+				limit_rate,
 				file: File::open(path)?,
-				buffer: vec![0u8; buffer * channels],
+				buffer: vec![0u8; opts.buffer as usize * opts.channels],
 			}
 		))
 	}
