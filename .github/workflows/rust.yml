@@ -17,6 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose --no-default-features --features=tui
+      run: cargo build --verbose --no-default-features --features=tui,file
     - name: Run tests
-      run: cargo test --verbose --no-default-features --features=tui
+      run: cargo test --verbose --no-default-features --features=tui,file
