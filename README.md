@@ -64,6 +64,22 @@ The audio buffer size directly impacts resource usage, latency and refresh rate 
 
 To change audio buffer size, the PulseAudio client must be restarted. Because of this, such option is configurable only at startup.
 
+## Docker Compose
+
+Included is a simple `Dockerfile` to build the project, and an accompanying `docker-compose.yml` to orchestrate starting the container with the proper volume mounts and environment variables.
+
+Also included is a helper shell script to launch the container, attach to the container instance, and destroy the container on exiting.
+
+```sh
+docker compose up -d
+docker attach scope_tui
+docker compose down
+
+# OR
+
+./docker_start.sh
+```
+
 ## Controls
 * Use `q` or `CTRL+C` to exit
 * Use `s` to toggle scatter mode
@@ -108,6 +124,7 @@ Some features I plan to work on and would like to add:
  * [x] Multiple channels
  * [x] Spectroscope
  * [x] File source
+ * [x] Dockerize
  * [ ] Mac audio sources
  * [ ] Windows audio sources
  * [ ] Improve file audio source

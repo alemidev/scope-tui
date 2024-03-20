@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  scope_tui:
+    container_name: scope_tui
+    # command: ["--scatter", "pulse"] # Example of customizing options
+    image: scope_tui
+    build: .
+    stdin_open: true
+    tty: true
+    environment:
+      - PULSE_SERVER=unix:${XDG_RUNTIME_DIR}/pulse/native
+    volumes:
+      - ${XDG_RUNTIME_DIR}/pulse/native:${XDG_RUNTIME_DIR}/pulse/native
+      - ~/.config/pulse/cookie:/.config/pulse/cookie
