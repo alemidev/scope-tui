@@ -12,7 +12,7 @@ USER 1000
 
 COPY --chown=1000:1000 . /app
 
-RUN cargo build
+RUN cargo install --path .
 
 ENTRYPOINT ["/app/target/release/scope-tui"]
 CMD ["pulse"]
