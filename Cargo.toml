@@ -1,6 +1,6 @@
 [package]
 name = "scope-tui"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = [ "alemi <me@alemi.dev>" ]
 description = "A simple oscilloscope/vectorscope/spectroscope for your terminal"
