@@ -50,7 +50,7 @@ impl DefaultAudioDeviceWithCPAL {
 
 		let cfg = cpal::StreamConfig {
 			channels: actual_channels,
-			buffer_size: cpal::BufferSize::Fixed(opts.buffer * actual_channels as u32 * 2),
+			buffer_size: cpal::BufferSize::Fixed(opts.buffer),
 			sample_rate: cpal::SampleRate(opts.sample_rate),
 		};
 		let (tx, rx) = mpsc::channel();
