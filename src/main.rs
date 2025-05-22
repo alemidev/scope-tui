@@ -23,7 +23,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 		},
 
 		#[cfg(feature = "cpal")]
-		ScopeSource::Audio { device, timeout } => {
+		ScopeSource::Audio { device, timeout, list } => {
+			if list {
+				use cpal::traits::{DeviceTrait, HostTrait};
+				let host = cpal::default_host();
+				for dev in host
+					.input_devices()
+					.unwrap()
+				{
+					println!("> {}", dev.name().unwrap());
+				}
+				return Ok(());
+			}
 			scope::input::cpal::DefaultAudioDeviceWithCPAL::instantiate(device.as_deref(), &args.opts, timeout)?
 		}
 	};

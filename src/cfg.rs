@@ -82,6 +82,10 @@ pub enum ScopeSource {
 		/// timeout (in seconds) waiting for audio stream
 		#[arg(long, default_value_t = 60)]
 		timeout: u64,
+
+		/// just list available devices and quit
+		#[arg(long, default_value_t = false)]
+		list: bool,
 	}
 }
 
