@@ -5,13 +5,24 @@ use crate::input::Matrix;
 
 use super::{update_value_f, update_value_i, DataSet, Dimension, DisplayMode, GraphConfig};
 
-#[derive(Default)]
 pub struct Oscilloscope {
 	pub triggering: bool,
 	pub falling_edge: bool,
 	pub threshold: f64,
 	pub depth: u32,
 	pub peaks: bool,
+}
+
+impl Default for Oscilloscope {
+	fn default() -> Self {
+		Oscilloscope {
+			triggering: false,
+			falling_edge: false,
+			threshold: 0.0,
+			depth: 0,
+			peaks: true,
+		}
+	}
 }
 
 impl DisplayMode for Oscilloscope {
