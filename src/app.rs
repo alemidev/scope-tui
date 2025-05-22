@@ -88,7 +88,7 @@ impl App {
 				}
 				datasets.append(&mut self.current_display_mut().process(&graph, &channels));
 				terminal.draw(|f| {
-					let mut size = f.size();
+					let mut size = f.area();
 					if self.graph.show_ui {
 						f.render_widget(
 							make_header(&self.graph, &self.current_display().header(&self.graph), self.current_display().mode_str(), framerate, self.graph.pause),
