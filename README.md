@@ -29,40 +29,45 @@ _(note that my git server doesn't support smart http clones, setting fetch-with-
 The resulting binary will be under `$HOME./cargo/bin`. Either add such folder to your `$PATH` or copy the resulting binary somewhere in your `$PATH`.
 
 ## Sources
-A very crude file source is always available, which can be a named pipe. While this allows connecting `scope-tui` to a lot of things, it's not super convenient, and more specialized sources should be used when available.
+The `audio` source is included by default, it works across platforms (windows, macos, linux) and uses the default sound system available. Note that being able to listen your computer audio needs your sound system to have a loopback device (for example, macos doesn't! look into BlackHole)
 
-Currently only the PulseAudio source on Linux has been implemented, but more are planned for the future thanks to the modular sources structure.
+A very crude file source is also included by default, which can be a named pipe. While this allows connecting `scope-tui` to a lot of things, it's not super convenient, and more specialized sources should be used when available.
+
+Optionally, on Linux the PulseAudio source is available, and directly connects to PulseAudio.
 
 Enable sources by passing the respective feature flags while compiling: `--features=pulseaudio,...`. Disable default features with `--no-default-features`. 
- * `pulseaudio` : pulseaudio implementation with LibPulse Simple bindings **(enabled by default)**
+ * `cpal` : generic cross-platform audio implementation, backed by [cpal](https://github.com/rustaudio/cpal) **(enabled by default)**
+ * `file` : simple raw-file implementation, just consuming a file source **(enabled by default)**
+ * `pulseaudio` : pulseaudio implementation with LibPulse Simple bindings
 
 
 # Usage
 ```
-$ scope-tui [OPTIONS] <COMMAND>
+Usage: scope-tui [OPTIONS] <COMMAND>
 
 Commands:
-  pulse  use PulseAudio Simple api to read data from an audio sink
   file   use a file from filesystem and read its content
+  audio  use new experimental CPAL backend
+  pulse  use PulseAudio Simple api to read data from an audio sink
   help   Print this message or the help of the given subcommand(s)
 
 Options:
       --channels <N>      number of channels to open [default: 2]
+  -b, --buffer <SIZE>     size of audio buffer, and width of scope [default: 2048]
+      --sample-rate <HZ>  sample rate to use [default: 48000]
       --tune <NOTE>       tune buffer size to be in tune with given note (overrides buffer option)
-  -b, --buffer <SIZE>     size of audio buffer, and width of scope [default: 8192]
-      --sample-rate <HZ>  sample rate to use [default: 44100]
-  -r, --range <SIZE>      max value, positive and negative, on amplitude scale [default: 20000]
+  -s, --scale <x>         floating point vertical scale, from 0 to 1 [default: 1]
       --scatter           use vintage looking scatter mode instead of line mode
       --no-reference      don't draw reference line
       --no-ui             hide UI and only draw waveforms
       --no-braille        don't use braille dots for drawing lines
-  -h, --help              Print help information
-  -V, --version           Print version information
+  -h, --help              Print help
+  -V, --version           Print version
 ```
 
-The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `8192` or tuning to the 0th octave.
+The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `2048` at `48kHz`, which should guarantee at least 20 frames per second. Increasing sample rate and decreasing buffer size will allow scope-tui to refresh the screen faster.
 
-To change audio buffer size, the PulseAudio client must be restarted. Because of this, such option is configurable only at startup.
+To change audio buffer size or sample rate, scope-tui must be restarted, as it needs to re-initialize the audio device. Because of this, such options are only available from the command line, and not during usage.
 
 ## Controls
 * Use `q` or `CTRL+C` to exit
@@ -82,6 +87,8 @@ To change audio buffer size, the PulseAudio client must be restarted. Because of
     * Use `-`/`_` and `=`/`+` to increase or decrease trigger debouncing
   * **Spectroscope**:
     * Use `<PG-UP>` and `<PG-DOWN>` to increase or decrease averaging count
+	* Use `l` to toggle logarithmic view (default ON)
+	* Use `w` to toggle [Hann Window](https://en.wikipedia.org/wiki/Hann_function) (a bit of smoothing)
   * **Vectorscope**:
 * Combine increment/decrement commands with `<SHIFT>` to increase or decrease by x10
 * Combine increment/decrement commands with `<CTRL>` to increase or decrease by x5
@@ -92,7 +99,7 @@ While "scatter" plot mode is as precise as the samples are and the terminal lets
 
 Latency is kept to a minimum thanks to small buffer and block sizes.
 
-Sample rate can be freely specified but will ultimately be limited by source's actual sample rate.
+Sample rate and channel count can be freely specified but will ultimately be limited by source's actual sample rate / channel count.
 
 Decrease/increase terminal font size to increase/decrease scope resolution.
 
@@ -108,8 +115,8 @@ Some features I plan to work on and would like to add:
  * [x] Multiple channels
  * [x] Spectroscope
  * [x] File source
- * [ ] Mac audio sources
- * [ ] Windows audio sources
+ * [x] Mac audio sources
+ * [x] Windows audio sources
  * [ ] Improve file audio source
  * [ ] Network sources
  * [ ] GUI frontend
