@@ -1,6 +1,6 @@
 # scope-tui
-[![Actions Status](https://github.com/alemidev/scope-tui/actions/workflows/test.yml/badge.svg)](https://github.com/alemidev/scope-tui/actions)
-[![Actions Status](https://github.com/alemidev/scope-tui/actions/workflows/build.yml/badge.svg)](https://github.com/alemidev/scope-tui/actions)
+[![Actions Status](https://github.com/alemidev/scope-tui/actions/workflows/test.yml/badge.svg)](https://github.com/alemidev/scope-tui/actions/workflows/test.yml)
+[![Actions Status](https://github.com/alemidev/scope-tui/actions/workflows/build.yml/badge.svg)](https://github.com/alemidev/scope-tui/actions/workflows/build.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/scope-tui)](https://crates.io/crates/scope-tui)
 [![GitHub last commit](https://img.shields.io/github/last-commit/alemidev/scope-tui)](https://github.com/alemidev/scope-tui/commits/dev/)
 [![GitHub commits since tagged version](https://img.shields.io/github/commits-since/alemidev/scope-tui/v0.3.2)](https://github.com/alemidev/scope-tui/releases/tag/v0.3.2)
