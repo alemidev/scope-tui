@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: apt install libasound2-dev
       - run: cargo build --verbose
       - run: cargo test --verbose
   build:
@@ -24,17 +25,21 @@ jobs:
       matrix:
         platform:
           - runner: ubuntu-latest
+            pre-build: apt install libasound2-dev
             target: linux-x64-gnu
             ext:
           - runner: windows-latest
+            pre-build: echo 'N/A'
             target: win32-x64
             ext: .exe
           - runner: macos-14
+            pre-build: echo 'N/A'
             target: darwin-arm64
             ext:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: ${{ matrix.platform.pre-build }}
       - run: cargo build --release
       - run: mv target/release/scope-tui${{ matrix.platform.ext }} scope-tui-${{ matrix.platform.target }}${{ matrix.platform.ext }}
       - uses: actions/upload-artifact@v4
