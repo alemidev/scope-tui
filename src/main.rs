@@ -32,6 +32,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 					.unwrap()
 				{
 					println!("> {}", dev.name().unwrap());
+					for config in dev.supported_input_configs().unwrap() {
+						let bufsize = match config.buffer_size() {
+							cpal::SupportedBufferSize::Range { min, max } => (*min, *max),
+							cpal::SupportedBufferSize::Unknown => (0, 0),
+						};
+						println!(
+							"  + {}ch {}-{}hz {}-{}buf ({})",
+							config.channels(), config.min_sample_rate().0, config.max_sample_rate().0, bufsize.0, bufsize.1, config.sample_format()
+						);
+					}
 				}
 				return Ok(());
 			}
