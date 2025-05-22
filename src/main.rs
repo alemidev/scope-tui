@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 		#[cfg(feature = "cpal")]
 		ScopeSource::Audio { device, timeout } => {
-			scope::input::cpal::DefaultAudioDeviceWithCPAL::new(device.as_deref(), &args.opts, timeout)?
+			scope::input::cpal::DefaultAudioDeviceWithCPAL::instantiate(device.as_deref(), &args.opts, timeout)?
 		}
 	};
 

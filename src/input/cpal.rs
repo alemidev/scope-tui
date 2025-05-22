@@ -28,7 +28,7 @@ pub enum AudioDeviceErrors {
 }
 
 impl DefaultAudioDeviceWithCPAL {
-	pub fn new(device: Option<&str>, opts: &crate::cfg::SourceOptions, timeout_secs: u64) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
+	pub fn instantiate(device: Option<&str>, opts: &crate::cfg::SourceOptions, timeout_secs: u64) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
 		let host = cpal::default_host();
 		let device = match device {
 			Some(name) => host
