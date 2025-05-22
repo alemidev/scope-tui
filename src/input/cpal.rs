@@ -22,6 +22,9 @@ pub enum AudioDeviceErrors {
 
 	#[error("{0}")]
 	PlayStream(#[from] cpal::PlayStreamError),
+
+	#[error("{0}")]
+	SupportedStreamsError(#[from] cpal::SupportedStreamConfigsError),
 }
 
 impl DefaultAudioDeviceWithCPAL {
@@ -36,16 +39,29 @@ impl DefaultAudioDeviceWithCPAL {
 				.default_input_device()
 				.ok_or(AudioDeviceErrors::NotFound)?,
 		};
+
+		let max_channels = device
+			.supported_input_configs()?
+			.map(|x| x.channels())
+			.max()
+			.unwrap_or(opts.channels as u16);
+
+		let actual_channels = std::cmp::min(opts.channels as u16, max_channels);
+
 		let cfg = cpal::StreamConfig {
-			channels: opts.channels as u16,
-			buffer_size: cpal::BufferSize::Fixed(opts.buffer * opts.channels as u32 * 2),
+			channels: actual_channels,
+			buffer_size: cpal::BufferSize::Fixed(opts.buffer * actual_channels as u32 * 2),
 			sample_rate: cpal::SampleRate(opts.sample_rate),
 		};
 		let (tx, rx) = mpsc::channel();
-		let channels = opts.channels; 
 		let stream = device.build_input_stream(
 			&cfg,
-			move |data:&[f32], _info| tx.send(stream_to_matrix(data.iter().cloned(), channels, 1.)).unwrap_or(()),
+			move |data:&[f32], _info| {
+				tx.send(
+					stream_to_matrix(data.iter().cloned(), actual_channels as usize, 1.)
+				)
+					.unwrap_or(())
+			},
 			|e| eprintln!("error in input stream: {e}"),
 			Some(std::time::Duration::from_secs(timeout_secs)),
 		)?;
