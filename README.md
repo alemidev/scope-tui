@@ -18,9 +18,12 @@ I thus decided to solve this very critical issue with my own hands! And over a n
 the first version of `scope-tui` was developed, with very minimal settings given from command line, but a bonus vectorscope mode baked in.
 
 # Installation
-Currently no binaries or packages are available and you must compile this yourself.
+### Binaries
+Pre-build binaries for windows (x64), linux (gnu-64) and macos (arm64, unsigned) are available under the [releases](https://github.com/alemidev/scope-tui/releases) tab
 
-If you don't have the rust toolchain already installed, get it with [rustup](https://rustup.rs/)
+### From source
+> [!TIP]
+> If you don't have the rust toolchain already installed, get it with [rustup](https://rustup.rs/)
 
 Once you have `rustc` and `cargo`, just use `cargo install`:
 ```bash
@@ -110,7 +113,8 @@ Sample rate and channel count can be freely specified but will ultimately be lim
 Decrease/increase terminal font size to increase/decrease scope resolution.
 
 # Development
-Any help is appreciated, feel free to contact me if you want to contribuite.
+> [!IMPORTANT]
+> Any help is appreciated, feel free to contact me if you want to contribuite, either via issues/PRs or with [any of my contacts](https://alemi.dev/about/contacts/)
 
 Some features I plan to work on and would like to add:
  * [x] Oscilloscope
