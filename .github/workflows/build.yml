@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --verbose
+      - run: cargo test --verbose
+  build:
+    needs: [test]
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: linux-x64-gnu
+            ext:
+          - runner: windows-latest
+            target: win32-x64
+            ext: .exe
+          - runner: macos-14
+            target: darwin-arm64
+            ext:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: mv target/release/scope-tui${{ matrix.platform.ext }} scope-tui-${{ matrix.platform.target }}${{ matrix.platform.ext }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scope-tui-${{ matrix.platform.target }}
+          path: scope-tui-${{ matrix.platform.target }}${{ matrix.platform.ext }}
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: **
+          generate_release_notes: true
+          make_latest: true
