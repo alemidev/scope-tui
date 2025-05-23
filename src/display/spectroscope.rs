@@ -9,7 +9,6 @@ use super::{update_value_i, DataSet, Dimension, DisplayMode, GraphConfig};
 
 use rustfft::{FftPlanner, num_complex::Complex};
 
-#[derive(Default)]
 pub struct Spectroscope {
 	pub sampling_rate: u32,
 	pub buffer_size: u32,
@@ -43,7 +42,8 @@ impl From<&crate::cfg::SourceOptions> for Spectroscope {
 		Spectroscope {
 			sampling_rate: value.sample_rate,
 			buffer_size: value.buffer,
-			average: 1, buf: Vec::new(),
+			average: 5,
+			buf: Vec::new(),
 			window: false,
 			log_y: true,
 		}
