@@ -8,9 +8,6 @@ on:
 permissions:
   contents: write
 
-env:
-    BIN_NAME: scope-tui
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -44,11 +41,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: ${{ matrix.platform.pre-build }}
       - run: cargo build --release
-      - run: mv target/release/$BIN_NAME${{ matrix.platform.ext }} $BIN_NAME-${{ github.ref_name }}-${{ matrix.platform.target }}${{ matrix.platform.ext }}
+      - run: mv target/release/scope-tui${{ matrix.platform.ext }} scope-tui-${{ github.ref_name }}-${{ matrix.platform.target }}${{ matrix.platform.ext }}
       - uses: actions/upload-artifact@v4
         with:
-          name: $BIN_NAME-${{ github.ref_name }}-${{ matrix.platform.target }}
-          path: $BIN_NAME-${{ github.ref_name }}-${{ matrix.platform.target }}${{ matrix.platform.ext }}
+          name: scope-tui-${{ github.ref_name }}-${{ matrix.platform.target }}
+          path: scope-tui-${{ github.ref_name }}-${{ matrix.platform.target }}${{ matrix.platform.ext }}
 
   release:
     needs: [build]
