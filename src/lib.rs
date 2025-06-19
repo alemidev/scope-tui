@@ -1,6 +1,6 @@
-pub mod music;
-pub mod input;
 pub mod display;
+pub mod input;
+pub mod music;
 
 #[cfg(feature = "app")]
 pub mod cfg;

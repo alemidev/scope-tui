@@ -1,14 +1,26 @@
-
-use std::{io, time::{Duration, Instant}};
-use ratatui::{
-	style::Color, widgets::{Table, Row, Cell}, symbols::Marker,
-	backend::Backend,
-	widgets::Chart,
-	Terminal, style::{Style, Modifier}, layout::{Rect, Constraint}
-};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use ratatui::{
+	backend::Backend,
+	layout::{Constraint, Rect},
+	style::Color,
+	style::{Modifier, Style},
+	symbols::Marker,
+	widgets::Chart,
+	widgets::{Cell, Row, Table},
+	Terminal,
+};
+use std::{
+	io,
+	time::{Duration, Instant},
+};
 
-use crate::{display::{oscilloscope::Oscilloscope, spectroscope::Spectroscope, update_value_f, update_value_i, vectorscope::Vectorscope, Dimension, DisplayMode, GraphConfig}, input::{DataSource, Matrix}};
+use crate::{
+	display::{
+		oscilloscope::Oscilloscope, spectroscope::Spectroscope, update_value_f, update_value_i,
+		vectorscope::Vectorscope, Dimension, DisplayMode, GraphConfig,
+	},
+	input::{DataSource, Matrix},
+};
 
 pub enum CurrentDisplayMode {
 	Oscilloscope,
@@ -17,7 +29,8 @@ pub enum CurrentDisplayMode {
 }
 
 pub struct App {
-	#[allow(unused)] channels: u8,
+	#[allow(unused)]
+	channels: u8,
 	graph: GraphConfig,
 	oscilloscope: Oscilloscope,
 	vectorscope: Vectorscope,
@@ -51,35 +64,44 @@ impl App {
 		let vectorscope = Vectorscope::default();
 		let spectroscope = Spectroscope::from(source);
 
-		App { 
-			graph, oscilloscope, vectorscope, spectroscope,
+		App {
+			graph,
+			oscilloscope,
+			vectorscope,
+			spectroscope,
 			mode: CurrentDisplayMode::Oscilloscope,
 			channels: source.channels as u8,
 		}
 	}
 
-	pub fn run<T : Backend>(&mut self, mut source: Box<dyn DataSource<f64>>, terminal: &mut Terminal<T>) -> Result<(), io::Error> {
+	pub fn run<T: Backend>(
+		&mut self,
+		mut source: Box<dyn DataSource<f64>>,
+		terminal: &mut Terminal<T>,
+	) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
 		let mut last_poll = Instant::now();
 		let mut channels = Matrix::default();
-	
+
 		loop {
-			let data = source.recv()
-				.ok_or(io::Error::new(io::ErrorKind::BrokenPipe, "data source returned null"))?;
-	
+			let data = source.recv().ok_or(io::Error::new(
+				io::ErrorKind::BrokenPipe,
+				"data source returned null",
+			))?;
+
 			if !self.graph.pause {
 				channels = data;
 			}
-	
+
 			fps += 1;
-	
+
 			if last_poll.elapsed().as_secs() >= 1 {
 				framerate = fps;
 				fps = 0;
 				last_poll = Instant::now();
 			}
-	
+
 			{
 				let mut datasets = Vec::new();
 				let graph = self.graph.clone(); // TODO cheap fix...
@@ -91,8 +113,19 @@ impl App {
 					let mut size = f.area();
 					if self.graph.show_ui {
 						f.render_widget(
-							make_header(&self.graph, &self.current_display().header(&self.graph), self.current_display().mode_str(), framerate, self.graph.pause),
-							Rect { x: size.x, y: size.y, width: size.width, height:1 } // a 1px line at the top
+							make_header(
+								&self.graph,
+								&self.current_display().header(&self.graph),
+								self.current_display().mode_str(),
+								framerate,
+								self.graph.pause,
+							),
+							Rect {
+								x: size.x,
+								y: size.y,
+								width: size.width,
+								height: 1,
+							}, // a 1px line at the top
 						);
 						size.height -= 1;
 						size.y += 1;
@@ -104,10 +137,13 @@ impl App {
 				})?;
 			}
 
-			while event::poll(Duration::from_millis(0))? { // process all enqueued events
+			while event::poll(Duration::from_millis(0))? {
+				// process all enqueued events
 				let event = event::read()?;
 
-				if self.process_events(event.clone())? { return Ok(()); }
+				if self.process_events(event.clone())? {
+					return Ok(());
+				}
 				self.current_display_mut().handle(event);
 			}
 		}
@@ -133,9 +169,10 @@ impl App {
 		let mut quit = false;
 		if let Event::Key(key) = event {
 			if let KeyModifiers::CONTROL = key.modifiers {
-				match key.code { // mimic other programs shortcuts to quit, for user friendlyness
+				match key.code {
+					// mimic other programs shortcuts to quit, for user friendlyness
 					KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => quit = true,
-					_ => {},
+					_ => {}
 				}
 			}
 			let magnitude = match key.modifiers {
@@ -145,51 +182,76 @@ impl App {
 				_ => 1.0,
 			};
 			match key.code {
-				KeyCode::Up       => update_value_f(&mut self.graph.scale,  0.01, magnitude, 0.0..10.0), // inverted to act as zoom
-				KeyCode::Down     => update_value_f(&mut self.graph.scale, -0.01, magnitude, 0.0..10.0), // inverted to act as zoom
-				KeyCode::Right    => update_value_i(&mut self.graph.samples, true, 25, magnitude, 0..self.graph.width*2),
-				KeyCode::Left     => update_value_i(&mut self.graph.samples, false, 25, magnitude, 0..self.graph.width*2),
+				KeyCode::Up => update_value_f(&mut self.graph.scale, 0.01, magnitude, 0.0..10.0), // inverted to act as zoom
+				KeyCode::Down => update_value_f(&mut self.graph.scale, -0.01, magnitude, 0.0..10.0), // inverted to act as zoom
+				KeyCode::Right => update_value_i(
+					&mut self.graph.samples,
+					true,
+					25,
+					magnitude,
+					0..self.graph.width * 2,
+				),
+				KeyCode::Left => update_value_i(
+					&mut self.graph.samples,
+					false,
+					25,
+					magnitude,
+					0..self.graph.width * 2,
+				),
 				KeyCode::Char('q') => quit = true,
-				KeyCode::Char(' ') => self.graph.pause        = !self.graph.pause,
-				KeyCode::Char('s') => self.graph.scatter      = !self.graph.scatter,
-				KeyCode::Char('h') => self.graph.show_ui      = !self.graph.show_ui,
-				KeyCode::Char('r') => self.graph.references   = !self.graph.references,
-				KeyCode::Tab => { // switch modes
+				KeyCode::Char(' ') => self.graph.pause = !self.graph.pause,
+				KeyCode::Char('s') => self.graph.scatter = !self.graph.scatter,
+				KeyCode::Char('h') => self.graph.show_ui = !self.graph.show_ui,
+				KeyCode::Char('r') => self.graph.references = !self.graph.references,
+				KeyCode::Tab => {
+					// switch modes
 					match self.mode {
-						CurrentDisplayMode::Oscilloscope => self.mode = CurrentDisplayMode::Vectorscope,
-						CurrentDisplayMode::Vectorscope => self.mode = CurrentDisplayMode::Spectroscope,
-						CurrentDisplayMode::Spectroscope => self.mode = CurrentDisplayMode::Oscilloscope,
+						CurrentDisplayMode::Oscilloscope => {
+							self.mode = CurrentDisplayMode::Vectorscope
+						}
+						CurrentDisplayMode::Vectorscope => {
+							self.mode = CurrentDisplayMode::Spectroscope
+						}
+						CurrentDisplayMode::Spectroscope => {
+							self.mode = CurrentDisplayMode::Oscilloscope
+						}
 					}
-				},
+				}
 				KeyCode::Esc => {
 					self.graph.samples = self.graph.width;
 					self.graph.scale = 1.;
-				},
-				_ => {},
+				}
+				_ => {}
 			}
 		};
-	
+
 		Ok(quit)
 	}
 }
 
 // TODO can these be removed or merged somewhere else?
 
-fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, kind_o_scope: &'static str, fps: usize, pause: bool) -> Table<'a> {
+fn make_header<'a>(
+	cfg: &GraphConfig,
+	module_header: &'a str,
+	kind_o_scope: &'static str,
+	fps: usize,
+	pause: bool,
+) -> Table<'a> {
 	Table::new(
-		vec![
-			Row::new(
-				vec![
-					Cell::from(format!("{}::scope-tui", kind_o_scope)).style(Style::default().fg(*cfg.palette.first().expect("empty palette?")).add_modifier(Modifier::BOLD)),
-					Cell::from(module_header),
-					Cell::from(format!("-{:.2}x+", cfg.scale)),
-					Cell::from(format!("{}/{} spf", cfg.samples, cfg.width)),
-					Cell::from(format!("{}fps", fps)),
-					Cell::from(if cfg.scatter { "***" } else { "---" }),
-					Cell::from(if pause { "||" } else { "|>" }),
-				]
-			)
-		],
+		vec![Row::new(vec![
+			Cell::from(format!("{}::scope-tui", kind_o_scope)).style(
+				Style::default()
+					.fg(*cfg.palette.first().expect("empty palette?"))
+					.add_modifier(Modifier::BOLD),
+			),
+			Cell::from(module_header),
+			Cell::from(format!("-{:.2}x+", cfg.scale)),
+			Cell::from(format!("{}/{} spf", cfg.samples, cfg.width)),
+			Cell::from(format!("{}fps", fps)),
+			Cell::from(if cfg.scatter { "***" } else { "---" }),
+			Cell::from(if pause { "||" } else { "|>" }),
+		])],
 		vec![
 			Constraint::Percentage(35),
 			Constraint::Percentage(25),
@@ -197,8 +259,8 @@ fn make_header<'a>(cfg: &GraphConfig, module_header: &'a str, kind_o_scope: &'st
 			Constraint::Percentage(13),
 			Constraint::Percentage(6),
 			Constraint::Percentage(6),
-			Constraint::Percentage(6)
-		]
+			Constraint::Percentage(6),
+		],
 	)
 	.style(Style::default().fg(cfg.labels_color))
 }

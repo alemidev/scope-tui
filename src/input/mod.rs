@@ -20,8 +20,14 @@ pub trait DataSource<T> {
 /// becomes
 ///   L L L L L
 ///   R R R R R
-pub fn stream_to_matrix<I, O>(stream: impl Iterator<Item = I>, channels: usize, norm: O) -> Matrix<O>
-where	I : Copy + Into<O>, O : Copy + std::ops::Div<Output = O>
+pub fn stream_to_matrix<I, O>(
+	stream: impl Iterator<Item = I>,
+	channels: usize,
+	norm: O,
+) -> Matrix<O>
+where
+	I: Copy + Into<O>,
+	O: Copy + std::ops::Div<Output = O>,
 {
 	let mut out = vec![vec![]; channels];
 	let mut channel = 0;

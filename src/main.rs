@@ -1,11 +1,11 @@
+use clap::Parser;
+use crossterm::{
+	execute,
+	terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use scope::app::App;
 use scope::cfg::{ScopeArgs, ScopeSource};
-use clap::Parser;
-use ratatui::{backend::CrosstermBackend, Terminal};
-use crossterm::{execute, terminal::{
-	disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen
-}};
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut args = ScopeArgs::parse();
@@ -13,24 +13,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	let source = match args.source {
 		#[cfg(feature = "pulseaudio")]
-		ScopeSource::Pulse { device, server_buffer } => {
-			scope::input::pulse::PulseAudioSimpleDataSource::new(device.as_deref(), &args.opts, server_buffer)?
-		},
+		ScopeSource::Pulse {
+			device,
+			server_buffer,
+		} => scope::input::pulse::PulseAudioSimpleDataSource::new(
+			device.as_deref(),
+			&args.opts,
+			server_buffer,
+		)?,
 
 		#[cfg(feature = "file")]
 		ScopeSource::File { path, limit_rate } => {
 			scope::input::file::FileSource::new(&path, &args.opts, limit_rate)?
-		},
+		}
 
 		#[cfg(feature = "cpal")]
-		ScopeSource::Audio { device, timeout, list } => {
+		ScopeSource::Audio {
+			device,
+			timeout,
+			list,
+		} => {
 			if list {
 				use cpal::traits::{DeviceTrait, HostTrait};
 				let host = cpal::default_host();
-				for dev in host
-					.input_devices()
-					.unwrap()
-				{
+				for dev in host.input_devices().unwrap() {
 					println!("> {}", dev.name().unwrap());
 					for config in dev.supported_input_configs().unwrap() {
 						let bufsize = match config.buffer_size() {
@@ -39,13 +45,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 						};
 						println!(
 							"  + {}ch {}-{}hz {}-{}buf ({})",
-							config.channels(), config.min_sample_rate().0, config.max_sample_rate().0, bufsize.0, bufsize.1, config.sample_format()
+							config.channels(),
+							config.min_sample_rate().0,
+							config.max_sample_rate().0,
+							bufsize.0,
+							bufsize.1,
+							config.sample_format()
 						);
 					}
 				}
 				return Ok(());
 			}
-			scope::input::cpal::DefaultAudioDeviceWithCPAL::instantiate(device.as_deref(), &args.opts, timeout)?
+			scope::input::cpal::DefaultAudioDeviceWithCPAL::instantiate(
+				device.as_deref(),
+				&args.opts,
+				timeout,
+			)?
 		}
 	};
 
@@ -63,10 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// restore terminal
 	disable_raw_mode()?;
-	execute!(
-		terminal.backend_mut(),
-		LeaveAlternateScreen,
-	)?;
+	execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
 	terminal.show_cursor()?;
 
 	if let Err(e) = res {

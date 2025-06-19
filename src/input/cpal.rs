@@ -1,5 +1,5 @@
-use std::sync::mpsc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use std::sync::mpsc;
 
 use super::{stream_to_matrix, Matrix};
 
@@ -28,7 +28,11 @@ pub enum AudioDeviceErrors {
 }
 
 impl DefaultAudioDeviceWithCPAL {
-	pub fn instantiate(device: Option<&str>, opts: &crate::cfg::SourceOptions, timeout_secs: u64) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
+	pub fn instantiate(
+		device: Option<&str>,
+		opts: &crate::cfg::SourceOptions,
+		timeout_secs: u64,
+	) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
 		let host = cpal::default_host();
 		let device = match device {
 			Some(name) => host
@@ -56,11 +60,13 @@ impl DefaultAudioDeviceWithCPAL {
 		let (tx, rx) = mpsc::channel();
 		let stream = device.build_input_stream(
 			&cfg,
-			move |data:&[f32], _info| {
-				tx.send(
-					stream_to_matrix(data.iter().cloned(), actual_channels as usize, 1.)
-				)
-					.unwrap_or(())
+			move |data: &[f32], _info| {
+				tx.send(stream_to_matrix(
+					data.iter().cloned(),
+					actual_channels as usize,
+					1.,
+				))
+				.unwrap_or(())
 			},
 			|e| eprintln!("error in input stream: {e}"),
 			Some(std::time::Duration::from_secs(timeout_secs)),
@@ -78,7 +84,7 @@ impl super::DataSource<f64> for DefaultAudioDeviceWithCPAL {
 			Err(e) => {
 				println!("error receiving from source? {e}");
 				None
-			},
+			}
 		}
 	}
 }

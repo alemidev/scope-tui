@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::music::Note;
 
-const HELP_TEMPLATE : &str = "{before-help}\
+const HELP_TEMPLATE: &str = "{before-help}\
 {name} {version} -- by {author}
 {about}
 
@@ -17,7 +17,7 @@ const HELP_TEMPLATE : &str = "{before-help}\
 pub struct ScopeArgs {
 	#[clap(subcommand)]
 	pub source: ScopeSource,
-	
+
 	#[command(flatten)]
 	pub opts: SourceOptions,
 
@@ -50,7 +50,6 @@ pub struct UiOptions {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ScopeSource {
-
 	#[cfg(feature = "pulseaudio")]
 	/// use PulseAudio Simple api to read data from an audio sink
 	Pulse {
@@ -86,7 +85,7 @@ pub enum ScopeSource {
 		/// just list available devices and quit
 		#[arg(long, default_value_t = false)]
 		list: bool,
-	}
+	},
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -111,10 +110,12 @@ pub struct SourceOptions {
 // TODO its convenient to keep this here but it's not really the best place...
 impl SourceOptions {
 	pub fn tune(&mut self) {
-		if let Some(txt) = &self.tune { // TODO make it less jank
+		if let Some(txt) = &self.tune {
+			// TODO make it less jank
 			if let Ok(note) = txt.parse::<Note>() {
 				self.buffer = note.tune_buffer_size(self.sample_rate);
-				while self.buffer % (self.channels as u32 * 2) != 0 { // TODO customizable bit depth
+				while self.buffer % (self.channels as u32 * 2) != 0 {
+					// TODO customizable bit depth
 					self.buffer += 1; // TODO jank but otherwise it doesn't align
 				}
 			} else {

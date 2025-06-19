@@ -1,4 +1,3 @@
-
 pub trait SampleParser<T> {
 	fn parse(data: &[u8]) -> T;
 }

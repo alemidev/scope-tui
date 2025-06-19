@@ -1,8 +1,9 @@
-use std::{str::FromStr, num::ParseIntError};
+use std::{num::ParseIntError, str::FromStr};
 
+#[rustfmt::skip]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tone {
-	C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, B
+	C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, B,
 }
 
 #[derive(Debug, thiserror::Error, derive_more::Display)]
@@ -33,12 +34,10 @@ impl FromStr for Note {
 				break;
 			}
 		}
-		Ok(
-			Note {
-				tone: trimmed[..split].parse::<Tone>()?,
-				octave: trimmed[split..].parse::<u32>().unwrap_or(0),
-			}
-		)
+		Ok(Note {
+			tone: trimmed[..split].parse::<Tone>()?,
+			octave: trimmed[split..].parse::<u32>().unwrap_or(0),
+		})
 	}
 }
 
@@ -47,19 +46,19 @@ impl FromStr for Tone {
 
 	fn from_str(txt: &str) -> Result<Self, Self::Err> {
 		match txt {
-			"C"         => Ok(Tone::C ),
+			"C" => Ok(Tone::C),
 			"C#" | "Db" => Ok(Tone::Db),
-			"D"         => Ok(Tone::D ),
+			"D" => Ok(Tone::D),
 			"D#" | "Eb" => Ok(Tone::Eb),
-			"E"         => Ok(Tone::E ),
-			"F"         => Ok(Tone::F ),
+			"E" => Ok(Tone::E),
+			"F" => Ok(Tone::F),
 			"F#" | "Gb" => Ok(Tone::Gb),
-			"G"         => Ok(Tone::G ),
+			"G" => Ok(Tone::G),
 			"G#" | "Ab" => Ok(Tone::Ab),
-			"A"         => Ok(Tone::A ),
+			"A" => Ok(Tone::A),
 			"A#" | "Bb" => Ok(Tone::Bb),
-			"B"         => Ok(Tone::B ),
-			_           => Err(ToneError())
+			"B" => Ok(Tone::B),
+			_ => Err(ToneError()),
 		}
 	}
 }
@@ -76,18 +75,18 @@ impl Tone {
 	pub fn freq(&self, octave: u32) -> f32 {
 		match octave {
 			0 => match self {
-				Tone::C  => 16.35,
+				Tone::C => 16.35,
 				Tone::Db => 17.32,
-				Tone::D  => 18.35,
+				Tone::D => 18.35,
 				Tone::Eb => 19.45,
-				Tone::E  => 20.60,
-				Tone::F  => 21.83,
+				Tone::E => 20.60,
+				Tone::F => 21.83,
 				Tone::Gb => 23.12,
-				Tone::G  => 24.50,
+				Tone::G => 24.50,
 				Tone::Ab => 25.96,
-				Tone::A  => 27.50,
+				Tone::A => 27.50,
 				Tone::Bb => 29.14,
-				Tone::B  => 30.87,
+				Tone::B => 30.87,
 			},
 			_ => {
 				let mut freq = self.freq(0);
@@ -99,4 +98,3 @@ impl Tone {
 		}
 	}
 }
-

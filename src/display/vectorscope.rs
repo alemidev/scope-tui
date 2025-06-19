@@ -1,8 +1,12 @@
-use ratatui::{widgets::{Axis, GraphType}, style::Style, text::Span};
+use ratatui::{
+	style::Style,
+	text::Span,
+	widgets::{Axis, GraphType},
+};
 
 use crate::input::Matrix;
 
-use super::{DisplayMode, GraphConfig, DataSet, Dimension};
+use super::{DataSet, Dimension, DisplayMode, GraphConfig};
 
 #[derive(Default)]
 pub struct Vectorscope {}
@@ -26,7 +30,8 @@ impl DisplayMode for Vectorscope {
 			Dimension::Y => ("| right", [-cfg.scale, cfg.scale]),
 		};
 		let mut a = Axis::default();
-		if cfg.show_ui { // TODO don't make it necessary to check show_ui inside here
+		if cfg.show_ui {
+			// TODO don't make it necessary to check show_ui inside here
 			a = a.title(Span::styled(name, Style::default().fg(cfg.labels_color)));
 		}
 		a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
@@ -34,8 +39,20 @@ impl DisplayMode for Vectorscope {
 
 	fn references(&self, cfg: &GraphConfig) -> Vec<DataSet> {
 		vec![
-			DataSet::new(None, vec![(-cfg.scale, 0.0), (cfg.scale, 0.0)], cfg.marker_type, GraphType::Line, cfg.axis_color), 
-			DataSet::new(None, vec![(0.0, -cfg.scale), (0.0, cfg.scale)], cfg.marker_type, GraphType::Line, cfg.axis_color),
+			DataSet::new(
+				None,
+				vec![(-cfg.scale, 0.0), (cfg.scale, 0.0)],
+				cfg.marker_type,
+				GraphType::Line,
+				cfg.axis_color,
+			),
+			DataSet::new(
+				None,
+				vec![(0.0, -cfg.scale), (0.0, cfg.scale)],
+				cfg.marker_type,
+				GraphType::Line,
+				cfg.axis_color,
+			),
 		]
 	}
 
@@ -47,16 +64,20 @@ impl DisplayMode for Vectorscope {
 			match chunk.len() {
 				2 => {
 					for i in 0..std::cmp::min(chunk[0].len(), chunk[1].len()) {
-						if i > cfg.samples as usize { break }
+						if i > cfg.samples as usize {
+							break;
+						}
 						tmp.push((chunk[0][i], chunk[1][i]));
 					}
-				},
+				}
 				1 => {
 					for i in 0..chunk[0].len() {
-						if i > cfg.samples as usize { break }
+						if i > cfg.samples as usize {
+							break;
+						}
 						tmp.push((chunk[0][i], i as f64));
 					}
-				},
+				}
 				_ => continue,
 			}
 			// split it in two for easier coloring
@@ -66,14 +87,22 @@ impl DisplayMode for Vectorscope {
 				Some(self.channel_name((n * 2) + 1)),
 				tmp[pivot..].to_vec(),
 				cfg.marker_type,
-				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
+				if cfg.scatter {
+					GraphType::Scatter
+				} else {
+					GraphType::Line
+				},
 				cfg.palette((n * 2) + 1),
 			));
 			out.push(DataSet::new(
 				Some(self.channel_name(n * 2)),
 				tmp[..pivot].to_vec(),
 				cfg.marker_type,
-				if cfg.scatter { GraphType::Scatter } else { GraphType::Line },
+				if cfg.scatter {
+					GraphType::Scatter
+				} else {
+					GraphType::Line
+				},
 				cfg.palette(n * 2),
 			));
 		}
