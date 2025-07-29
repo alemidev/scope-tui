@@ -7,6 +7,7 @@ pub struct DefaultAudioDeviceWithCPAL {
 	rx: mpsc::Receiver<Matrix<f64>>,
 	#[allow(unused)]
 	stream: cpal::Stream,
+	timeout: std::time::Duration,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -58,6 +59,7 @@ impl DefaultAudioDeviceWithCPAL {
 			sample_rate: cpal::SampleRate(opts.sample_rate),
 		};
 		let (tx, rx) = mpsc::channel();
+		let timeout = std::time::Duration::from_secs(timeout_secs);
 		let stream = device.build_input_stream(
 			&cfg,
 			move |data: &[f32], _info| {
@@ -69,17 +71,17 @@ impl DefaultAudioDeviceWithCPAL {
 				.unwrap_or(())
 			},
 			|e| eprintln!("error in input stream: {e}"),
-			Some(std::time::Duration::from_secs(timeout_secs)),
+			Some(timeout),
 		)?;
 		stream.play()?;
 
-		Ok(Box::new(DefaultAudioDeviceWithCPAL { stream, rx }))
+		Ok(Box::new(DefaultAudioDeviceWithCPAL { stream, rx, timeout }))
 	}
 }
 
 impl super::DataSource<f64> for DefaultAudioDeviceWithCPAL {
 	fn recv(&mut self) -> Option<super::Matrix<f64>> {
-		match self.rx.recv() {
+		match self.rx.recv_timeout(self.timeout) {
 			Ok(x) => Some(x),
 			Err(e) => {
 				println!("error receiving from source? {e}");
