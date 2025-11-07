@@ -56,23 +56,26 @@ Enable sources by passing the respective feature flags while compiling: `--featu
 Usage: scope-tui [OPTIONS] <COMMAND>
 
 Commands:
+  pulse  use PulseAudio Simple api to read data from an audio sink
   file   use a file from filesystem and read its content
   audio  use new experimental CPAL backend
-  pulse  use PulseAudio Simple api to read data from an audio sink
   help   Print this message or the help of the given subcommand(s)
 
 Options:
-      --channels <N>      number of channels to open [default: 2]
-  -b, --buffer <SIZE>     size of audio buffer, and width of scope [default: 2048]
-      --sample-rate <HZ>  sample rate to use [default: 48000]
-      --tune <NOTE>       tune buffer size to be in tune with given note (overrides buffer option)
-  -s, --scale <x>         floating point vertical scale, from 0 to 1 [default: 1]
-      --scatter           use vintage looking scatter mode instead of line mode
-      --no-reference      don't draw reference line
-      --no-ui             hide UI and only draw waveforms
-      --no-braille        don't use braille dots for drawing lines
-  -h, --help              Print help
-  -V, --version           Print version
+  -c, --channels <N>                   number of channels to open [default: 2]
+  -b, --buffer <SIZE>                  size of audio buffer, and width of scope [default: 2048]
+  -r, --sample-rate <HZ>               sample rate to use [default: 48000]
+  -t, --tune <NOTE>                    tune buffer size to be in tune with given note (overrides buffer option)
+  -s, --scale <x>                      floating point vertical scale, from 0 to 1 [default:1]
+      --scatter                        use vintage looking scatter mode instead of line mode
+      --no-reference                   don't draw reference line
+      --no-ui                          hide UI and only draw waveforms
+      --no-braille                     don't use braille dots for drawing lines
+      --palette-color <color1,color2>  palette to use for scope signal lines [default: red,yellow,green,magenta]
+      --labels-color <color>           color to use for axis labels [default: Cyan]
+      --axis-color <color>             color to use for axis lines [default: DarkGray]
+  -h, --help                           Print help
+  -V, --version                        Print version
 ```
 
 The audio buffer size directly impacts resource usage, latency and refresh rate and its limits are given by the audio refresh rate. Larger buffers are slower but less resource intensive. A good starting value might be `2048` at `48kHz`, which should guarantee at least 20 frames per second. Increasing sample rate and decreasing buffer size will allow scope-tui to refresh the screen faster.
