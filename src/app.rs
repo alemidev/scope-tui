@@ -2,7 +2,6 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
 	backend::Backend,
 	layout::{Constraint, Rect},
-	style::Color,
 	style::{Modifier, Style},
 	symbols::Marker,
 	widgets::Chart,
