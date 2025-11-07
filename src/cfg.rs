@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::music::Note;
 
+// TODO is this still necessary?
 const HELP_TEMPLATE: &str = "{before-help}\
 {name} {version} -- by {author}
 {about}
@@ -91,7 +92,7 @@ pub enum ScopeSource {
 #[derive(Debug, Clone, Parser)]
 pub struct SourceOptions {
 	/// number of channels to open
-	#[arg(long, value_name = "N", default_value_t = 2)]
+	#[arg(short, long, value_name = "N", default_value_t = 2)]
 	pub channels: usize,
 
 	/// size of audio buffer, and width of scope
@@ -99,11 +100,11 @@ pub struct SourceOptions {
 	pub buffer: u32,
 
 	/// sample rate to use
-	#[arg(long, value_name = "HZ", default_value_t = 48000)]
+	#[arg(short = 'r', long, value_name = "HZ", default_value_t = 48000)]
 	pub sample_rate: u32,
 
 	/// tune buffer size to be in tune with given note (overrides buffer option)
-	#[arg(long, value_name = "NOTE")]
+	#[arg(short, long, value_name = "NOTE")]
 	pub tune: Option<String>,
 }
 
@@ -114,7 +115,7 @@ impl SourceOptions {
 			// TODO make it less jank
 			if let Ok(note) = txt.parse::<Note>() {
 				self.buffer = note.tune_buffer_size(self.sample_rate);
-				while self.buffer % (self.channels as u32 * 2) != 0 {
+				while self.buffer.is_multiple_of(self.channels as u32 * 2) {
 					// TODO customizable bit depth
 					self.buffer += 1; // TODO jank but otherwise it doesn't align
 				}
