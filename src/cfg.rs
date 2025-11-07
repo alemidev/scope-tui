@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use ratatui::style::Color;
 
 use crate::music::Note;
 
@@ -47,6 +48,18 @@ pub struct UiOptions {
 	/// don't use braille dots for drawing lines
 	#[arg(long, default_value_t = false)]
 	pub no_braille: bool,
+
+	/// palette to use for scope signal lines
+	#[arg(long, value_name = "color1,color2", value_delimiter = ',', default_value = "red,yellow,green,magenta")]
+	pub palette_color: Vec<Color>,
+
+	/// color to use for axis labels
+	#[arg(long, value_name = "color", default_value_t = Color::Cyan)]
+	pub labels_color: Color,
+
+	/// color to use for axis lines
+	#[arg(long, value_name = "color", default_value_t = Color::DarkGray)]
+	pub axis_color: Color,
 }
 
 #[derive(Debug, Clone, Subcommand)]

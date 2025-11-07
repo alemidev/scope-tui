@@ -42,9 +42,9 @@ pub struct App {
 impl App {
 	pub fn new(ui: &crate::cfg::UiOptions, source: &crate::cfg::SourceOptions) -> Self {
 		let graph = GraphConfig {
-			axis_color: Color::DarkGray,
-			labels_color: Color::Cyan,
-			palette: vec![Color::Red, Color::Yellow, Color::Green, Color::Magenta],
+			axis_color: ui.axis_color,
+			labels_color: ui.labels_color,
+			palette: ui.palette_color.clone(),
 			scale: ui.scale as f64,
 			width: source.buffer, // TODO also make bit depth customizable
 			samples: source.buffer,
