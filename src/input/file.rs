@@ -1,9 +1,38 @@
-use std::{fs::File, io::Read};
+use std::{
+	fs::File,
+	io::{self, Read},
+};
 
 use super::{
 	format::{SampleParser, Signed16PCM},
 	stream_to_matrix, Matrix,
 };
+
+/// Reads the file into the buffer until the buffer is full or the EOF is reached.
+///
+/// If it reaches the EOF before the buffer is full pad the buffer with zeros.
+pub fn read_with_padding(file: &mut File, buffer: &mut [u8]) -> io::Result<()> {
+	let mut read_so_far = 0;
+
+	while read_so_far < buffer.len() {
+		let remaining_slice = &mut buffer[read_so_far..];
+
+		let n = file.read(remaining_slice)?;
+		if n > 0 {
+			read_so_far += n;
+		} else {
+			// End of File reached -> pad with zeros
+			// buffer: [........0000]
+			for b in remaining_slice {
+				*b = 0;
+			}
+
+			return Ok(());
+		}
+	}
+
+	Ok(())
+}
 
 pub struct FileSource {
 	file: File,
@@ -35,7 +64,7 @@ impl FileSource {
 
 impl super::DataSource<f64> for FileSource {
 	fn recv(&mut self) -> Option<Matrix<f64>> {
-		match self.file.read_exact(&mut self.buffer) {
+		match read_with_padding(&mut self.file, &mut self.buffer) {
 			Ok(()) => Some(stream_to_matrix(
 				self.buffer.chunks(2).map(Signed16PCM::parse),
 				self.channels,
