@@ -50,7 +50,7 @@ pub struct UiOptions {
 	pub no_braille: bool,
 
 	/// palette to use for scope signal lines
-	#[arg(long, value_name = "color1,color2", value_delimiter = ',', default_value = "red,yellow,green,magenta")]
+	#[arg(long, value_name = "color1,color2", value_delimiter = ',', default_value = "red,yellow,cyan,magenta")]
 	pub palette_color: Vec<Color>,
 
 	/// color to use for axis labels
