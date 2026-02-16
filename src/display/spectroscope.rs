@@ -20,11 +20,17 @@ pub struct Spectroscope {
 	pub buf: Vec<VecDeque<Vec<f64>>>,
 	pub window: bool,
 	pub log_y: bool,
+	pub phase_diff: bool,
 }
 
 fn magnitude(c: Complex<f64>) -> f64 {
 	let squared = (c.re * c.re) + (c.im * c.im);
 	squared.sqrt()
+}
+
+fn phase(c: Complex<f64>) -> f64 {
+	let r = f64::atan2(c.re, c.im);
+	if r.is_normal() { r } else { 0. }
 }
 
 // got this from https://github.com/phip1611/spectrum-analyzer/blob/3c079ec2785b031d304bb381ff5f5fe04e6bcf71/src/windows.rs#L40
@@ -50,6 +56,7 @@ impl From<&crate::cfg::SourceOptions> for Spectroscope {
 			buf: Vec::new(),
 			window: false,
 			log_y: true,
+			phase_diff: false,
 		}
 	}
 }
@@ -131,7 +138,10 @@ impl DisplayMode for Spectroscope {
 		let resolution = self.sampling_rate as f64 / sample_len as f64;
 		let fft = planner.plan_fft_forward(sample_len as usize);
 
+		let mut all_phases = Vec::new();
+
 		for (n, chan_queue) in self.buf.iter().enumerate().rev() {
+			let mut phases = Vec::new();
 			let mut chunk = chan_queue.iter().flatten().copied().collect::<Vec<f64>>();
 			if self.window {
 				chunk = hann_window(chunk.as_slice());
@@ -157,6 +167,9 @@ impl DisplayMode for Spectroscope {
 					.iter()
 					.enumerate()
 					.map(|(i, x)| {
+						if self.phase_diff {
+							phases.push(phase(*x));
+						}
 						(
 							(i as f64 * resolution).ln(),
 							if self.log_y {
@@ -175,6 +188,27 @@ impl DisplayMode for Spectroscope {
 				},
 				cfg.palette(n),
 			));
+			all_phases.push(phases);
+		}
+
+		if self.phase_diff {
+			let mut phase_diff = Vec::new();
+			for i in 0..all_phases.first().map(|x| x.len()).unwrap_or_default() {
+				for p in all_phases.chunks(2) {
+					phase_diff.push((
+						(i as f64 * resolution).ln(),
+						(p[0].get(i).cloned().unwrap_or_default() - p[1].get(i).cloned().unwrap_or_default()).abs()
+					));
+				}
+			}
+
+			out.insert(0, DataSet::new(
+				Some("phase diff".to_string()),
+				phase_diff,
+				cfg.marker_type,
+				GraphType::Scatter,
+				cfg.palette(self.buf.len()),
+			));
 		}
 
 		out
@@ -187,6 +221,7 @@ impl DisplayMode for Spectroscope {
 				KeyCode::PageDown => update_value_i(&mut self.average, false, 1, 1., 1..65535),
 				KeyCode::Char('w') => self.window = !self.window,
 				KeyCode::Char('l') => self.log_y = !self.log_y,
+				KeyCode::Char('p') => self.phase_diff = !self.phase_diff,
 				_ => {}
 			}
 		}
