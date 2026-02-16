@@ -163,7 +163,7 @@ impl DisplayMode for Spectroscope {
 			fft.process(tmp.as_mut_slice());
 			out.push(DataSet::new(
 				Some(self.channel_name(n)),
-				tmp[..=tmp.len() / 2]
+				tmp
 					.iter()
 					.enumerate()
 					.map(|(i, x)| {
