@@ -1,9 +1,4 @@
 use clap::Parser;
-use crossterm::{
-	execute,
-	terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{backend::CrosstermBackend, Terminal};
 use scope::app::App;
 use scope::cfg::{ScopeArgs, ScopeSource};
 
@@ -66,20 +61,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	let mut app = App::new(&args.ui, &args.opts);
 
-	// setup terminal
-	enable_raw_mode()?;
-	let mut stdout = std::io::stdout();
-	execute!(stdout, EnterAlternateScreen)?;
-	let backend = CrosstermBackend::new(stdout);
-	let mut terminal = Terminal::new(backend)?;
-	terminal.hide_cursor()?;
+	// set panic hook to restore the terminal
+	let hook = std::panic::take_hook();
+	std::panic::set_hook(Box::new(move |panic_info| {
+		ratatui::restore();
+		hook(panic_info);
+	}));
 
-	let res = app.run(source, &mut terminal);
+	let term = ratatui::init();
+	let res = app.run(source, term);
 
-	// restore terminal
-	disable_raw_mode()?;
-	execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-	terminal.show_cursor()?;
+	ratatui::restore();
 
 	if let Err(e) = res {
 		eprintln!("[!] Error executing app: {:?}", e);

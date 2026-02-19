@@ -76,7 +76,7 @@ impl App {
 	pub fn run<T: Backend>(
 		&mut self,
 		mut source: Box<dyn DataSource<f64>>,
-		terminal: &mut Terminal<T>,
+		mut terminal: Terminal<T>,
 	) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
