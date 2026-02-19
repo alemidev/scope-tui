@@ -24,7 +24,7 @@ impl DisplayMode for Vectorscope {
 		"live".into()
 	}
 
-	fn axis(&self, cfg: &GraphConfig, dimension: Dimension) -> Axis {
+	fn axis(&'_ self, cfg: &GraphConfig, dimension: Dimension) -> Axis<'_> {
 		let (name, bounds) = match dimension {
 			Dimension::X => ("left -", [-cfg.scale, cfg.scale]),
 			Dimension::Y => ("| right", [-cfg.scale, cfg.scale]),
