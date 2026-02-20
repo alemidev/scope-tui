@@ -4,7 +4,7 @@
 [![Crates.io Version](https://img.shields.io/crates/v/scope-tui)](https://crates.io/crates/scope-tui)
 [![Crates.io Downloads (latest version)](https://img.shields.io/crates/dv/scope-tui)](https://crates.io/crates/scope-tui)
 [![GitHub last commit](https://img.shields.io/github/last-commit/alemidev/scope-tui)](https://github.com/alemidev/scope-tui/commits/dev/)
-[![GitHub commits since tagged version](https://img.shields.io/github/commits-since/alemidev/scope-tui/v0.3.2)](https://github.com/alemidev/scope-tui/releases/tag/v0.3.2)
+[![GitHub commits since tagged version](https://img.shields.io/github/commits-since/alemidev/scope-tui/v0.3.5)](https://github.com/alemidev/scope-tui/releases/tag/v0.3.5)
 
 A simple oscilloscope/vectorscope/spectroscope for your terminal
 
