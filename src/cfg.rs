@@ -81,7 +81,7 @@ pub enum ScopeSource {
 		/// path on filesystem of file or pipe
 		path: String,
 
-		/// limit data flow to match requested sample rate (UNIMPLEMENTED)
+		/// limit data flow to match requested sample rate
 		#[arg(short, long, default_value_t = false)]
 		limit_rate: bool,
 	},

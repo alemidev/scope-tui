@@ -38,10 +38,8 @@ pub struct FileSource {
 	file: File,
 	buffer: Vec<u8>,
 	channels: usize,
-	_sample_rate: usize,
-	_limit_rate: bool,
-	// TODO when all data is available (eg, file) limit data flow to make it
-	// somehow visualizable. must be optional because named pipes block
+	limit_rate: bool,
+	ms_sleep: u64,
 	// TODO support more formats
 }
 
@@ -52,10 +50,13 @@ impl FileSource {
 		opts: &crate::cfg::SourceOptions,
 		limit_rate: bool,
 	) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
+		let samples_per_batch = (opts.buffer * opts.channels as u32) / 2;
+		let batches_per_second = opts.sample_rate / samples_per_batch;
+		let ms_sleep = (1000 / batches_per_second) as u64;
 		Ok(Box::new(FileSource {
 			channels: opts.channels,
-			_sample_rate: opts.sample_rate as usize,
-			_limit_rate: limit_rate,
+			limit_rate,
+			ms_sleep,
 			file: File::open(path)?,
 			buffer: vec![0u8; opts.buffer as usize * opts.channels],
 		}))
@@ -64,6 +65,9 @@ impl FileSource {
 
 impl super::DataSource<f64> for FileSource {
 	fn recv(&mut self) -> Option<Matrix<f64>> {
+		if self.limit_rate {
+			std::thread::sleep(std::time::Duration::from_millis(self.ms_sleep));
+		}
 		match read_with_padding(&mut self.file, &mut self.buffer) {
 			Ok(()) => Some(stream_to_matrix(
 				self.buffer.chunks(2).map(Signed16PCM::parse),
