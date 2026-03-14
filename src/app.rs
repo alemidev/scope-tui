@@ -73,7 +73,7 @@ impl App {
 		}
 	}
 
-	pub fn run<T: Backend>(
+	pub fn run<T: Backend<Error = io::Error>>(
 		&mut self,
 		mut source: Box<dyn DataSource<f64>>,
 		mut terminal: Terminal<T>,
