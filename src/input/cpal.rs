@@ -66,15 +66,22 @@ impl DefaultAudioDeviceWithCPAL {
 		};
 		let (tx, rx) = mpsc::channel();
 		let timeout = std::time::Duration::from_secs(timeout_secs);
+		let target_samples = opts.buffer as usize;
+		let mut acc: Vec<f32> = Vec::with_capacity(target_samples * actual_channels as usize);
 		let stream = device.build_input_stream(
 			&cfg,
 			move |data: &[f32], _info| {
-				tx.send(stream_to_matrix(
-					data.iter().cloned(),
-					actual_channels as usize,
-					1.,
-				))
-				.unwrap_or(())
+				acc.extend_from_slice(data);
+				let full_frame = target_samples * actual_channels as usize;
+				if acc.len() >= full_frame {
+					tx.send(stream_to_matrix(
+						acc[..full_frame].iter().cloned(),
+						actual_channels as usize,
+						1.,
+					))
+					.unwrap_or(());
+					acc.drain(..full_frame);
+				}
 			},
 			|e| eprintln!("error in input stream: {e}"),
 			Some(timeout),
