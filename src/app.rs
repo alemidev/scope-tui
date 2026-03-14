@@ -73,7 +73,7 @@ impl App {
 		}
 	}
 
-	pub fn run<T: Backend>(
+	pub fn run<T: Backend<Error = io::Error>>(
 		&mut self,
 		mut source: Box<dyn DataSource<f64>>,
 		mut terminal: Terminal<T>,
@@ -173,6 +173,7 @@ impl App {
 					KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => quit = true,
 					_ => {}
 				}
+				return Ok(quit);
 			}
 			let magnitude = match key.modifiers {
 				KeyModifiers::SHIFT => 10.0,

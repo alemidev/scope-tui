@@ -34,6 +34,9 @@ pub struct GraphConfig {
 
 impl GraphConfig {
 	pub fn palette(&self, index: usize) -> Color {
+		if self.palette.is_empty() {
+			return Color::White;
+		}
 		*self
 			.palette
 			.get(index % self.palette.len())
