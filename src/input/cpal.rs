@@ -53,6 +53,12 @@ impl DefaultAudioDeviceWithCPAL {
 
 		let actual_channels = std::cmp::min(opts.channels as u16, max_channels);
 
+		if actual_channels != opts.channels as u16 {
+			eprintln!(
+				"[!] requested {} channels but device supports at most {}; using {}",
+				opts.channels, max_channels, actual_channels
+			);
+		}
 		let cfg = cpal::StreamConfig {
 			channels: actual_channels,
 			buffer_size: cpal::BufferSize::Fixed(opts.buffer),

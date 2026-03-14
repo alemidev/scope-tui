@@ -58,7 +58,7 @@ impl FileSource {
 			limit_rate,
 			ms_sleep,
 			file: File::open(path)?,
-			buffer: vec![0u8; opts.buffer as usize * opts.channels],
+			buffer: vec![0u8; opts.buffer as usize * opts.channels * 2],
 		}))
 	}
 }

@@ -173,6 +173,7 @@ impl App {
 					KeyCode::Char('c') | KeyCode::Char('q') | KeyCode::Char('w') => quit = true,
 					_ => {}
 				}
+				return Ok(quit);
 			}
 			let magnitude = match key.modifiers {
 				KeyModifiers::SHIFT => 10.0,

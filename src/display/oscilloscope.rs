@@ -97,6 +97,10 @@ impl DisplayMode for Oscilloscope {
 				}
 				trigger_offset += 1;
 			}
+			// If trigger never fired, show data from the start rather than an empty graph
+			if trigger_offset >= data[0].len() {
+				trigger_offset = 0;
+			}
 		}
 
 		if self.triggering {
