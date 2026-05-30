@@ -66,7 +66,6 @@ impl DefaultAudioDeviceWithCPAL {
 				tx.send(stream_to_matrix(
 					data.iter().cloned(),
 					actual_channels as usize,
-					1.,
 				))
 				.unwrap_or(())
 			},

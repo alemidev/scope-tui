@@ -70,9 +70,8 @@ impl super::DataSource<f64> for FileSource {
 		}
 		match read_with_padding(&mut self.file, &mut self.buffer) {
 			Ok(()) => Some(stream_to_matrix(
-				self.buffer.chunks(2).map(Signed16PCM::parse),
+				Signed16PCM::parse(self.buffer.iter().copied()),
 				self.channels,
-				32768.0,
 			)),
 			Err(_e) => None, // TODO log it
 		}

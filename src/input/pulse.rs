@@ -59,9 +59,8 @@ impl super::DataSource<f64> for PulseAudioSimpleDataSource {
 	fn recv(&mut self) -> Option<super::Matrix<f64>> {
 		match self.simple.read(&mut self.buffer) {
 			Ok(()) => Some(stream_to_matrix(
-				self.buffer.chunks(2).map(Signed16PCM::parse),
+				Signed16PCM::parse(self.buffer.iter().copied()),
 				self.channels,
-				32768.0,
 			)),
 			Err(e) => {
 				eprintln!("[!] could not receive from pulseaudio: {}", e);
