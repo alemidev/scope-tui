@@ -25,7 +25,7 @@ impl PulseAudioSimpleDataSource {
 		server_buffer: u32,
 	) -> Result<Box<dyn super::DataSource<f64>>, PAErr> {
 		let spec = Spec {
-			format: Format::S16NE, // TODO allow more formats?
+			format: Format::S16NE,	//	TODO: this should probably be mapped to the Signed16PCM format somehow
 			channels: opts.channels as u8,
 			rate: opts.sample_rate,
 		};
@@ -33,7 +33,7 @@ impl PulseAudioSimpleDataSource {
 			return Err(PAErr(0)); // TODO what error number should we throw?
 		}
 		let attrs = BufferAttr {
-			maxlength: server_buffer * opts.buffer * opts.channels as u32 * 2,
+			maxlength: server_buffer * opts.buffer * opts.channels as u32 * 2,	//	TODO: magic #: depends on impl SampleParser<T>::size()
 			fragsize: opts.buffer,
 			..Default::default()
 		};
@@ -49,7 +49,7 @@ impl PulseAudioSimpleDataSource {
 		)?;
 		Ok(Box::new(Self {
 			simple,
-			buffer: vec![0; opts.buffer as usize * opts.channels * 2],
+			buffer: vec![0; opts.buffer as usize * opts.channels * 2],	//	TODO: magic #: depends on impl SampleParser<T>::size()
 			channels: opts.channels,
 		}))
 	}
