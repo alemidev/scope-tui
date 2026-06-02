@@ -50,15 +50,18 @@ impl FileSource {
 		opts: &crate::cfg::SourceOptions,
 		limit_rate: bool,
 	) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
-		let samples_per_batch = (opts.buffer * opts.channels as u32) / 2;	//	TODO: magic #: depends on impl SampleParser<T>::size()
+		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4);
+		let samples_per_batch = (opts.buffer * opts.channels as u32) / sample_size as u32;
+		
 		let batches_per_second = opts.sample_rate / samples_per_batch;
 		let ms_sleep = (1000 / batches_per_second) as u64;
+
 		Ok(Box::new(FileSource {
 			channels: opts.channels,
 			limit_rate,
 			ms_sleep,
 			file: File::open(path)?,
-			buffer: vec![0u8; opts.buffer as usize * opts.channels * 2],	//	TODO: magic #: provided by fix, depends on impl SampleParser<T>::size()
+			buffer: vec![0u8; opts.buffer as usize * opts.channels * sample_size],
 		}))
 	}
 }

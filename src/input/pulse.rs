@@ -24,6 +24,7 @@ impl PulseAudioSimpleDataSource {
 		opts: &crate::cfg::SourceOptions,
 		server_buffer: u32,
 	) -> Result<Box<dyn super::DataSource<f64>>, PAErr> {
+		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4);
 		let spec = Spec {
 			format: Format::S16NE,	//	TODO: this should probably be mapped to the Signed16PCM format somehow
 			channels: opts.channels as u8,
@@ -33,7 +34,7 @@ impl PulseAudioSimpleDataSource {
 			return Err(PAErr(0)); // TODO what error number should we throw?
 		}
 		let attrs = BufferAttr {
-			maxlength: server_buffer * opts.buffer * opts.channels as u32 * 2,	//	TODO: magic #: depends on impl SampleParser<T>::size()
+			maxlength: server_buffer * opts.buffer * opts.channels * sample_size as u32,
 			fragsize: opts.buffer,
 			..Default::default()
 		};
@@ -49,7 +50,7 @@ impl PulseAudioSimpleDataSource {
 		)?;
 		Ok(Box::new(Self {
 			simple,
-			buffer: vec![0; opts.buffer as usize * opts.channels * 2],	//	TODO: magic #: depends on impl SampleParser<T>::size()
+			buffer: vec![0; opts.buffer as usize * opts.channels * sample_size],
 			channels: opts.channels,
 		}))
 	}
