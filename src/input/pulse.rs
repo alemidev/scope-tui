@@ -24,7 +24,7 @@ impl PulseAudioSimpleDataSource {
 		opts: &crate::cfg::SourceOptions,
 		server_buffer: u32,
 	) -> Result<Box<dyn super::DataSource<f64>>, PAErr> {
-		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4);
+		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4); // TODO this needs to actually point to the audio or some argument
 		let spec = Spec {
 			format: Format::S16NE,	//	TODO: this should probably be mapped to the Signed16PCM format somehow
 			channels: opts.channels as u8,

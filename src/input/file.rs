@@ -50,7 +50,7 @@ impl FileSource {
 		opts: &crate::cfg::SourceOptions,
 		limit_rate: bool,
 	) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
-		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4);
+		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4); // TODO this needs to actually point to the audio or some argument
 		let samples_per_batch = (opts.buffer * opts.channels as u32) / sample_size as u32;
 		
 		let batches_per_second = opts.sample_rate / samples_per_batch;
