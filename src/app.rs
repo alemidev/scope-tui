@@ -27,6 +27,24 @@ pub enum CurrentDisplayMode {
 	Spectroscope,
 }
 
+impl CurrentDisplayMode {
+	pub fn switch(&self) -> Self {
+		match self {
+			Self::Oscilloscope => Self::Vectorscope,
+			Self::Vectorscope => Self::Spectroscope,
+			Self::Spectroscope => Self::Oscilloscope,
+		}
+	}
+
+	pub fn switch_reverse(&self) -> Self {
+		match self {
+			Self::Oscilloscope => Self::Spectroscope,
+			Self::Spectroscope => Self::Vectorscope,
+			Self::Vectorscope => Self::Oscilloscope,
+		}
+	}
+}
+
 pub struct App {
 	#[allow(unused)]
 	channels: u8,
@@ -202,20 +220,8 @@ impl App {
 				KeyCode::Char('s') => self.graph.scatter = !self.graph.scatter,
 				KeyCode::Char('h') => self.graph.show_ui = !self.graph.show_ui,
 				KeyCode::Char('r') => self.graph.references = !self.graph.references,
-				KeyCode::Tab => {
-					// switch modes
-					match self.mode {
-						CurrentDisplayMode::Oscilloscope => {
-							self.mode = CurrentDisplayMode::Vectorscope
-						}
-						CurrentDisplayMode::Vectorscope => {
-							self.mode = CurrentDisplayMode::Spectroscope
-						}
-						CurrentDisplayMode::Spectroscope => {
-							self.mode = CurrentDisplayMode::Oscilloscope
-						}
-					}
-				}
+				KeyCode::Tab => self.mode = self.mode.switch(),
+				KeyCode::BackTab => self.mode = self.mode.switch_reverse(),
 				KeyCode::Esc => {
 					self.graph.samples = self.graph.width;
 					self.graph.scale = 1.;
