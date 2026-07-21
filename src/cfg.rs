@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use ratatui::style::Color;
 
-use crate::music::Note;
+use crate::{app::CurrentDisplayMode, music::Note};
 
 // TODO is this still necessary?
 const HELP_TEMPLATE: &str = "{before-help}\
@@ -32,6 +32,10 @@ pub struct UiOptions {
 	/// floating point vertical scale, from 0 to 1
 	#[arg(short, long, value_name = "x", default_value_t = 1.0)]
 	pub scale: f32,
+
+	/// scope to show [possible values: oscillo, vector, spectro]
+	#[arg(long, value_name = "scope", default_value_t = CurrentDisplayMode::Oscilloscope)]
+	pub scope: CurrentDisplayMode,
 
 	/// use vintage looking scatter mode instead of line mode
 	#[arg(long, default_value_t = false)]

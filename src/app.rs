@@ -9,7 +9,9 @@ use ratatui::{
 	Terminal,
 };
 use std::{
+	fmt::Display,
 	io,
+	str::FromStr,
 	time::{Duration, Instant},
 };
 
@@ -21,10 +23,42 @@ use crate::{
 	input::{DataSource, Matrix},
 };
 
+#[derive(Debug, Clone, Copy)]
 pub enum CurrentDisplayMode {
 	Oscilloscope,
 	Vectorscope,
 	Spectroscope,
+}
+
+impl Display for CurrentDisplayMode {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Oscilloscope => f.write_str("oscillo"),
+			Self::Vectorscope => f.write_str("vector"),
+			Self::Spectroscope => f.write_str("spectro"),
+		}
+	}
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("expected valid scope name (`oscillo`, `vector` or `spectro`), got `{got}`")]
+pub struct ParseDisplayModeError {
+	got: String,
+}
+
+impl FromStr for CurrentDisplayMode {
+	type Err = ParseDisplayModeError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"oscillo" => Ok(Self::Oscilloscope),
+			"vector" => Ok(Self::Vectorscope),
+			"spectro" => Ok(Self::Spectroscope),
+			_ => Err(ParseDisplayModeError {
+				got: String::from(s),
+			}),
+		}
+	}
 }
 
 pub struct App {
@@ -68,7 +102,7 @@ impl App {
 			oscilloscope,
 			vectorscope,
 			spectroscope,
-			mode: CurrentDisplayMode::Oscilloscope,
+			mode: ui.scope,
 			channels: source.channels as u8,
 		}
 	}

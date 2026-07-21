@@ -67,6 +67,7 @@ Options:
   -r, --sample-rate <HZ>               sample rate to use [default: 48000]
   -t, --tune <NOTE>                    tune buffer size to be in tune with given note (overrides buffer option)
   -s, --scale <x>                      floating point vertical scale, from 0 to 1 [default:1]
+      --scope <scope>                  scope to show [possible values: oscillo, vector, spectro] [default: oscillo]
       --scatter                        use vintage looking scatter mode instead of line mode
       --no-reference                   don't draw reference line
       --no-ui                          hide UI and only draw waveforms
