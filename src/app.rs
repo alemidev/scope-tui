@@ -45,7 +45,7 @@ impl App {
 			labels_color: ui.labels_color,
 			palette: ui.palette_color.clone(),
 			scale: ui.scale as f64,
-			width: source.buffer, // TODO also make bit depth customizable
+			width: source.buffer,	// TODO: this depends on impl SampleParser<T>::size()
 			samples: source.buffer,
 			sampling_rate: source.sample_rate,
 			references: !ui.no_reference,

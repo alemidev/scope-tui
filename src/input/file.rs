@@ -50,15 +50,18 @@ impl FileSource {
 		opts: &crate::cfg::SourceOptions,
 		limit_rate: bool,
 	) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
-		let samples_per_batch = (opts.buffer * opts.channels as u32) / 2;
+		let sample_size = Signed16PCM::STATIC_SIZE.unwrap_or(4); // TODO this needs to actually point to the audio or some argument
+		let samples_per_batch = (opts.buffer * opts.channels as u32) / sample_size as u32;
+		
 		let batches_per_second = opts.sample_rate / samples_per_batch;
 		let ms_sleep = (1000 / batches_per_second) as u64;
+
 		Ok(Box::new(FileSource {
 			channels: opts.channels,
 			limit_rate,
 			ms_sleep,
 			file: File::open(path)?,
-			buffer: vec![0u8; opts.buffer as usize * opts.channels],
+			buffer: vec![0u8; opts.buffer as usize * opts.channels * sample_size],
 		}))
 	}
 }
@@ -70,9 +73,8 @@ impl super::DataSource<f64> for FileSource {
 		}
 		match read_with_padding(&mut self.file, &mut self.buffer) {
 			Ok(()) => Some(stream_to_matrix(
-				self.buffer.chunks(2).map(Signed16PCM::parse),
+				Signed16PCM::parse(self.buffer.iter().copied()),
 				self.channels,
-				32768.0,
 			)),
 			Err(_e) => None, // TODO log it
 		}
