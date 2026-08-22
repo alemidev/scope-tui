@@ -34,7 +34,7 @@ impl PulseAudioSimpleDataSource {
 			return Err(PAErr(0)); // TODO what error number should we throw?
 		}
 		let attrs = BufferAttr {
-			maxlength: server_buffer * opts.buffer * opts.channels * sample_size as u32,
+			maxlength: server_buffer * opts.buffer * opts.channels as u32 * sample_size as u32,
 			fragsize: opts.buffer,
 			..Default::default()
 		};
@@ -50,7 +50,7 @@ impl PulseAudioSimpleDataSource {
 		)?;
 		Ok(Box::new(Self {
 			simple,
-			buffer: vec![0; opts.buffer as usize * opts.channels * sample_size],
+			buffer: vec![0; opts.buffer as usize * opts.channels as usize * sample_size],
 			channels: opts.channels,
 		}))
 	}
