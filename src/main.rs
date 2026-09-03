@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 				use cpal::traits::{DeviceTrait, HostTrait};
 				let host = cpal::default_host();
 				for dev in host.input_devices().unwrap() {
-					println!("> {}", dev.name().unwrap());
+					println!("> {}", dev.description().map(|d| d.name().to_string()).unwrap_or("[N/A]".to_string()));
 					for config in dev.supported_input_configs().unwrap() {
 						let bufsize = match config.buffer_size() {
 							cpal::SupportedBufferSize::Range { min, max } => (*min, *max),
@@ -41,8 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 						println!(
 							"  + {}ch {}-{}hz {}-{}buf ({})",
 							config.channels(),
-							config.min_sample_rate().0,
-							config.max_sample_rate().0,
+							config.min_sample_rate(),
+							config.max_sample_rate(),
 							bufsize.0,
 							bufsize.1,
 							config.sample_format()

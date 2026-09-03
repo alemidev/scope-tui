@@ -1,16 +1,9 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
-	backend::Backend,
-	layout::{Constraint, Rect},
-	style::{Modifier, Style},
-	symbols::Marker,
-	widgets::Chart,
-	widgets::{Cell, Row, Table},
-	Terminal,
+	Terminal, backend::CrosstermBackend, layout::{Constraint, Rect}, style::{Modifier, Style}, symbols::Marker, widgets::{Cell, Chart, Row, Table},
 };
 use std::{
-	io,
-	time::{Duration, Instant},
+	io::{self, Stdout}, time::{Duration, Instant},
 };
 
 use crate::{
@@ -73,10 +66,10 @@ impl App {
 		}
 	}
 
-	pub fn run<T: Backend>(
+	pub fn run(
 		&mut self,
 		mut source: Box<dyn DataSource<f64>>,
-		mut terminal: Terminal<T>,
+		mut terminal: Terminal<CrosstermBackend<Stdout>>,
 	) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;

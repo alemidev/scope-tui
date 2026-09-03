@@ -10,39 +10,21 @@ pub struct DefaultAudioDeviceWithCPAL {
 	timeout: std::time::Duration,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum AudioDeviceErrors {
-	#[error("{0}")]
-	Device(#[from] cpal::DevicesError),
-
-	#[error("device not found")]
-	NotFound,
-
-	#[error("{0}")]
-	BuildStream(#[from] cpal::BuildStreamError),
-
-	#[error("{0}")]
-	PlayStream(#[from] cpal::PlayStreamError),
-
-	#[error("{0}")]
-	SupportedStreamsError(#[from] cpal::SupportedStreamConfigsError),
-}
-
 impl DefaultAudioDeviceWithCPAL {
 	pub fn instantiate(
 		device: Option<&str>,
 		opts: &crate::cfg::SourceOptions,
 		timeout_secs: u64,
-	) -> Result<Box<impl super::DataSource<f64>>, AudioDeviceErrors> {
+	) -> Result<Box<impl super::DataSource<f64>>, cpal::Error> {
 		let host = cpal::default_host();
 		let device = match device {
 			Some(name) => host
 				.input_devices()?
-				.find(|x| x.name().as_deref().unwrap_or("") == name)
-				.ok_or(AudioDeviceErrors::NotFound)?,
+				.find(|x| x.description().map(|d| d.name() == name).unwrap_or(false))
+				.ok_or(cpal::Error::new(cpal::ErrorKind::DeviceNotAvailable))?,
 			None => host
 				.default_input_device()
-				.ok_or(AudioDeviceErrors::NotFound)?,
+				.ok_or(cpal::Error::new(cpal::ErrorKind::DeviceNotAvailable))?,
 		};
 
 		let max_channels = device
@@ -56,12 +38,12 @@ impl DefaultAudioDeviceWithCPAL {
 		let cfg = cpal::StreamConfig {
 			channels: actual_channels,
 			buffer_size: cpal::BufferSize::Fixed(opts.buffer),
-			sample_rate: cpal::SampleRate(opts.sample_rate),
+			sample_rate: opts.sample_rate,
 		};
 		let (tx, rx) = mpsc::channel();
 		let timeout = std::time::Duration::from_secs(timeout_secs);
 		let stream = device.build_input_stream(
-			&cfg,
+			cfg,
 			move |data: &[f32], _info| {
 				tx.send(stream_to_matrix(
 					data.iter().cloned(),
