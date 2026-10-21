@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt update; sudo apt install -y libasound2-dev
+      - run: sudo apt update; sudo apt install -y libasound2-dev libpipewire-dev
       - run: cargo build --verbose
       - run: cargo test --verbose
   build:
