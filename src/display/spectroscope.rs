@@ -160,6 +160,9 @@ impl DisplayMode for Spectroscope {
 					im: 0.0,
 				})
 				.collect();
+			if tmp.len() < sample_len as usize {
+				tmp.resize(sample_len as usize, Complex { re: 0.0, im: 0.0 })
+			}
 			fft.process(tmp.as_mut_slice());
 			out.push(DataSet::new(
 				Some(self.channel_name(n)),
