@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
-	backend::Backend,
+	backend::CrosstermBackend,
 	layout::{Constraint, Rect},
 	style::{Modifier, Style},
 	symbols::Marker,
@@ -8,8 +8,7 @@ use ratatui::{
 	Terminal,
 };
 use std::{
-	io,
-	time::{Duration, Instant},
+	io::{self, Stdout}, time::{Duration, Instant},
 };
 
 use crate::{
@@ -20,10 +19,29 @@ use crate::{
 	input::{DataSource, Matrix},
 };
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum CurrentDisplayMode {
 	Oscilloscope,
 	Vectorscope,
 	Spectroscope,
+}
+
+impl CurrentDisplayMode {
+	pub fn switch(&self) -> Self {
+		match self {
+			Self::Oscilloscope => Self::Vectorscope,
+			Self::Vectorscope => Self::Spectroscope,
+			Self::Spectroscope => Self::Oscilloscope,
+		}
+	}
+
+	pub fn switch_reverse(&self) -> Self {
+		match self {
+			Self::Oscilloscope => Self::Spectroscope,
+			Self::Spectroscope => Self::Vectorscope,
+			Self::Vectorscope => Self::Oscilloscope,
+		}
+	}
 }
 
 pub struct App {
@@ -67,15 +85,15 @@ impl App {
 			oscilloscope,
 			vectorscope,
 			spectroscope,
-			mode: CurrentDisplayMode::Oscilloscope,
+			mode: ui.mode,
 			channels: source.channels as u8,
 		}
 	}
 
-	pub fn run<T: Backend>(
+	pub fn run(
 		&mut self,
 		mut source: Box<dyn DataSource<f64>>,
-		mut terminal: Terminal<T>,
+		mut terminal: Terminal<CrosstermBackend<Stdout>>,
 	) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
@@ -205,20 +223,8 @@ impl App {
 				KeyCode::Char('s') => self.graph.scatter = !self.graph.scatter,
 				KeyCode::Char('h') => self.graph.show_ui = !self.graph.show_ui,
 				KeyCode::Char('r') => self.graph.references = !self.graph.references,
-				KeyCode::Tab => {
-					// switch modes
-					match self.mode {
-						CurrentDisplayMode::Oscilloscope => {
-							self.mode = CurrentDisplayMode::Vectorscope
-						}
-						CurrentDisplayMode::Vectorscope => {
-							self.mode = CurrentDisplayMode::Spectroscope
-						}
-						CurrentDisplayMode::Spectroscope => {
-							self.mode = CurrentDisplayMode::Oscilloscope
-						}
-					}
-				}
+				KeyCode::Tab => self.mode = self.mode.switch(),
+				KeyCode::BackTab => self.mode = self.mode.switch_reverse(),
 				KeyCode::Esc => {
 					self.graph.samples = self.graph.width;
 					self.graph.scale = 1.;

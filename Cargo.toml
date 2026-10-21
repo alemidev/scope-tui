@@ -20,15 +20,15 @@ required-features = ["app"]
 
 
 [dependencies]
-derive_more = { version = "2.0", features = ["display", "from"] }
+derive_more = { version = "2.1", features = ["display", "from"] }
 thiserror = "2.0"
-rustfft = "6.3"
+rustfft = "6.4"
 # for TUI app
-clap = { version = "4.5", features = ["derive"], optional = true }
+clap = { version = "4.6", features = ["derive"], optional = true }
 # cross platform audio library backend
-cpal = { version = "0.15", optional = true }
+cpal = { version = "0.18", features = ["pipewire"], optional = true }
 # for TUI backend
-ratatui = { version = "0.29", features = ["all-widgets"], optional = true }
+ratatui = { version = "0.30", features = ["all-widgets"], optional = true }
 crossterm = { version = "0.29", optional = true }
 # for pulseaudio
 libpulse-binding = { version = "2.30", optional = true }
