@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use ratatui::style::Color;
 
-use crate::music::Note;
+use crate::{app::CurrentDisplayMode, music::Note};
 
 // TODO is this still necessary?
 const HELP_TEMPLATE: &str = "{before-help}\
@@ -60,6 +60,10 @@ pub struct UiOptions {
 	/// color to use for axis lines
 	#[arg(long, value_name = "color", default_value_t = Color::DarkGray)]
 	pub axis_color: Color,
+
+	/// mode to start in
+	#[arg(long, value_enum, default_value_t = CurrentDisplayMode::Oscilloscope)]
+	pub mode: CurrentDisplayMode,
 }
 
 #[derive(Debug, Clone, Subcommand)]

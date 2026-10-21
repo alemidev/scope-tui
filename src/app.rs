@@ -14,6 +14,7 @@ use crate::{
 	input::{DataSource, Matrix},
 };
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum CurrentDisplayMode {
 	Oscilloscope,
 	Vectorscope,
@@ -61,7 +62,7 @@ impl App {
 			oscilloscope,
 			vectorscope,
 			spectroscope,
-			mode: CurrentDisplayMode::Oscilloscope,
+			mode: ui.mode,
 			channels: source.channels as u8,
 		}
 	}
