@@ -1,6 +1,11 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
-	Terminal, backend::CrosstermBackend, layout::{Constraint, Rect}, style::{Modifier, Style}, symbols::Marker, widgets::{Cell, Chart, Row, Table},
+	backend::CrosstermBackend,
+	layout::{Constraint, Rect},
+	style::{Modifier, Style},
+	symbols::Marker,
+	widgets::{Cell, Chart, LegendPosition, Row, Table},
+	Terminal,
 };
 use std::{
 	io::{self, Stdout}, time::{Duration, Instant},
@@ -143,7 +148,11 @@ impl App {
 					}
 					let chart = Chart::new(datasets.iter().map(|x| x.into()).collect())
 						.x_axis(self.current_display().axis(&self.graph, Dimension::X)) // TODO allow to have axis sometimes?
-						.y_axis(self.current_display().axis(&self.graph, Dimension::Y));
+						.y_axis(self.current_display().axis(&self.graph, Dimension::Y))
+						.legend_position(match self.graph.show_ui {
+							false => None,
+							true => Some(LegendPosition::TopRight),
+						});
 					f.render_widget(chart, size)
 				})?;
 			}
