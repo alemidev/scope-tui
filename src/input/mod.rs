@@ -23,16 +23,15 @@ pub trait DataSource<T> {
 pub fn stream_to_matrix<I, O>(
 	stream: impl Iterator<Item = I>,
 	channels: usize,
-	norm: O,
 ) -> Matrix<O>
 where
 	I: Copy + Into<O>,
-	O: Copy + std::ops::Div<Output = O>,
+	O: Copy,
 {
 	let mut out = vec![vec![]; channels];
 	let mut channel = 0;
 	for sample in stream {
-		out[channel].push(sample.into() / norm);
+		out[channel].push(sample.into());
 		channel = (channel + 1) % channels;
 	}
 	out
