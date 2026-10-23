@@ -126,14 +126,27 @@ pub(crate) fn update_value_i(
 ) {
 	let delta = (base as f64 * magnitude) as u32;
 	if inc {
-		if range.end - delta < *val {
-			*val = range.end
-		} else {
-			*val += delta
-		}
-	} else if range.start + delta > *val {
-		*val = range.start
+		*val = val.saturating_add(delta).min(range.end);
 	} else {
-		*val -= delta
+		*val = val.saturating_sub(delta).max(range.start);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::update_value_i;
+
+	#[test]
+	fn large_increment_clamps_to_upper_bound() {
+		let mut value = 4;
+		update_value_i(&mut value, true, 25, 10.0, 0..8);
+		assert_eq!(value, 8);
+	}
+
+	#[test]
+	fn large_decrement_clamps_to_lower_bound() {
+		let mut value = 4;
+		update_value_i(&mut value, false, 25, 10.0, 1..8);
+		assert_eq!(value, 1);
 	}
 }
