@@ -135,7 +135,7 @@ pub struct SourceOptions {
 	pub tune: Option<String>,
 
 	/// number of tape chunks to keep in memory (for smooth scrolling)
-	#[arg(long, default_value_t = 32)]
+	#[arg(long, default_value_t = 4)]
 	pub chunks: usize,
 }
 
