@@ -5,7 +5,7 @@ use std::{
 
 use super::{
 	format::{SampleParser, Signed16PCM},
-	stream_to_matrix, Matrix,
+	stream_to_matrix, SampleTape,
 };
 
 /// Reads the file into the buffer until the buffer is full or the EOF is reached.
@@ -43,28 +43,8 @@ pub struct FileSource {
 	// TODO support more formats
 }
 
-impl FileSource {
-	#[allow(clippy::new_ret_no_self)]
-	pub fn new(
-		path: &str,
-		opts: &crate::cfg::SourceOptions,
-		limit_rate: bool,
-	) -> Result<Box<dyn super::DataSource<f64>>, std::io::Error> {
-		let samples_per_batch = (opts.buffer * opts.channels as u32) / 2;
-		let batches_per_second = opts.sample_rate / samples_per_batch;
-		let ms_sleep = (1000 / batches_per_second) as u64;
-		Ok(Box::new(FileSource {
-			channels: opts.channels,
-			limit_rate,
-			ms_sleep,
-			file: File::open(path)?,
-			buffer: vec![0u8; opts.buffer as usize * opts.channels],
-		}))
-	}
-}
-
-impl super::DataSource<f64> for FileSource {
-	fn recv(&mut self) -> Option<Matrix<f64>> {
+impl super::Source for FileSource {
+	fn recv(&mut self) -> Option<SampleTape> {
 		if self.limit_rate {
 			std::thread::sleep(std::time::Duration::from_millis(self.ms_sleep));
 		}
@@ -76,5 +56,36 @@ impl super::DataSource<f64> for FileSource {
 			)),
 			Err(_e) => None, // TODO log it
 		}
+	}
+}
+
+#[derive(Default)]
+pub struct FileHost;
+
+impl super::Host for FileHost {
+	type Err = std::io::Error;
+	type Src = FileSource;
+	type Cfg = crate::cfg::FileOptions;
+
+	fn list(&self) -> Result<Vec<String>, Self::Err> {
+		Ok(
+			std::fs::read_dir(std::env::current_dir()?)?
+				.filter_map(|d| d.ok())
+				.map(|d| d.path().to_string_lossy().to_string())
+				.collect()
+		)
+	}
+
+	fn source(&self, dev: Option<String>, opts: Self::Cfg, source: crate::cfg::SourceOptions) -> Result<Self::Src, Self::Err> {
+		let samples_per_batch = (source.buffer * source.channels as u32) / 2;
+		let batches_per_second = source.sample_rate / samples_per_batch;
+		let ms_sleep = (1000 / batches_per_second) as u64;
+		Ok(FileSource {
+			channels: source.channels,
+			limit_rate: opts.limit_rate,
+			ms_sleep,
+			file: File::open(dev.ok_or(std::io::Error::from(std::io::ErrorKind::NotFound))?)?,
+			buffer: vec![0u8; source.buffer as usize * source.channels],
+		})
 	}
 }
