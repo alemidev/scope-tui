@@ -64,7 +64,7 @@ impl App {
 			palette: ui.palette_color.clone(),
 			scale: ui.scale as f64,
 			chunks: source.chunks as u32,
-			samples: source.buffer / source.channels as u32 / 2 * (source.chunks as u32 / 2),
+			samples: source.buffer / source.channels as u32 / 2 * source.chunks as u32,
 			initial_samples: source.buffer / source.channels as u32 / 2,
 			sampling_rate: source.sample_rate,
 			references: !ui.no_reference,
@@ -89,7 +89,7 @@ impl App {
 			spectroscope,
 			mode: ui.mode,
 			channels: source.channels as u8,
-			frame_time: ui.framerate.map(|x| std::time::Duration::from_millis(1000 / x)),
+			frame_time: ui.framerate.map(|x| std::time::Duration::from_nanos(1000000000 / x)),
 		}
 	}
 

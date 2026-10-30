@@ -52,9 +52,9 @@ impl From<&crate::cfg::SourceOptions> for Spectroscope {
 		Spectroscope {
 			sampling_rate: value.sample_rate,
 			buffer_size: value.buffer,
-			average: 1,
+			average: 10,
 			buf: Vec::new(),
-			window: false,
+			window: true,
 			log_y: true,
 			phase_diff: false,
 		}
@@ -99,7 +99,7 @@ impl DisplayMode for Spectroscope {
 				"frequency -",
 				[
 					20.0f64.ln(),
-					((cfg.samples as f64 / cfg.chunks as f64) * 20000.0).ln(),
+					((cfg.samples as f64 / (cfg.initial_samples * cfg.chunks) as f64) * 20000.0).ln(),
 				],
 			),
 			Dimension::Y => (

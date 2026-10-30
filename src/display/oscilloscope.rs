@@ -45,11 +45,11 @@ impl DisplayMode for Oscilloscope {
 	fn header(&self, _: &GraphConfig) -> String {
 		if self.triggering {
 			format!(
-				"{} {:.0}{} trigger",
+				"{} {:.2}{} trigger",
 				if self.falling_edge { "v" } else { "^" },
 				self.threshold,
 				if self.depth > 1 {
-					format!(":{}", self.depth)
+					format!("::{}", self.depth)
 				} else {
 					"".into()
 				},
@@ -160,10 +160,10 @@ impl DisplayMode for Oscilloscope {
 			};
 			match key.code {
 				KeyCode::PageUp => {
-					update_value_f(&mut self.threshold, 250.0, magnitude, 0.0..32768.0)
+					update_value_f(&mut self.threshold, 0.05, magnitude, 0.0..1.0)
 				}
 				KeyCode::PageDown => {
-					update_value_f(&mut self.threshold, -250.0, magnitude, 0.0..32768.0)
+					update_value_f(&mut self.threshold, -0.05, magnitude, 0.0..1.0)
 				}
 				KeyCode::Char('t') => self.triggering = !self.triggering,
 				KeyCode::Char('e') => self.falling_edge = !self.falling_edge,
