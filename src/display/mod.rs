@@ -9,7 +9,7 @@ use ratatui::{
 	widgets::{Axis, Dataset, GraphType},
 };
 
-use crate::input::Matrix;
+use crate::input::SampleTape;
 
 pub enum Dimension {
 	X,
@@ -20,9 +20,10 @@ pub enum Dimension {
 pub struct GraphConfig {
 	pub pause: bool,
 	pub samples: u32,
+	pub initial_samples: u32, // TODO jank fix
 	pub sampling_rate: u32,
 	pub scale: f64,
-	pub width: u32,
+	pub chunks: u32,
 	pub scatter: bool,
 	pub references: bool,
 	pub show_ui: bool,
@@ -45,7 +46,7 @@ impl GraphConfig {
 pub trait DisplayMode {
 	// MUST define
 	fn axis(&'_ self, cfg: &GraphConfig, dimension: Dimension) -> Axis<'_>; // TODO simplify this
-	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet>;
+	fn process(&mut self, cfg: &GraphConfig, data: &SampleTape) -> Vec<DataSet>;
 	fn mode_str(&self) -> &'static str;
 
 	// SHOULD override

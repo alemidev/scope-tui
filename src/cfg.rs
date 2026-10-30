@@ -17,18 +17,29 @@ const HELP_TEMPLATE: &str = "{before-help}\
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None, help_template = HELP_TEMPLATE)]
 pub struct ScopeArgs {
+	#[command(flatten)]
+	pub ui: UiOptions,
+
 	#[clap(subcommand)]
 	pub source: ScopeSource,
 
 	#[command(flatten)]
 	pub opts: SourceOptions,
 
-	#[command(flatten)]
-	pub ui: UiOptions,
+	/// device to attach to, by name
+	pub device: Option<String>,
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct UiOptions {
+	/// run device picker before starting scope-tui
+	#[arg(short, long, default_value_t = false)]
+	pub picker: bool,
+
+	/// limits max framerate if set
+	#[arg(long = "fps")]
+	pub framerate: Option<u64>,
+
 	/// floating point vertical scale, from 0 to 1
 	#[arg(short, long, value_name = "x", default_value_t = 1.0)]
 	pub scale: f32,
@@ -70,40 +81,39 @@ pub struct UiOptions {
 pub enum ScopeSource {
 	#[cfg(feature = "pulseaudio")]
 	/// use PulseAudio Simple api to read data from an audio sink
-	Pulse {
-		/// source device to attach to
-		device: Option<String>,
-
-		/// PulseAudio server buffer size, in block number
-		#[arg(long, value_name = "N", default_value_t = 32)]
-		server_buffer: u32,
-	},
+	Pulse(#[clap(flatten)] PulseOptions),
 
 	#[cfg(feature = "file")]
 	/// use a file from filesystem and read its content
-	File {
-		/// path on filesystem of file or pipe
-		path: String,
-
-		/// limit data flow to match requested sample rate
-		#[arg(short, long, default_value_t = false)]
-		limit_rate: bool,
-	},
+	File(#[clap(flatten)] FileOptions),
 
 	#[cfg(feature = "cpal")]
 	/// use new experimental CPAL backend
-	Audio {
-		/// source device to attach to
-		device: Option<String>,
+	Audio(#[clap(flatten)] CpalOptions),
+}
 
-		/// timeout (in seconds) waiting for audio stream
-		#[arg(long, default_value_t = 5)]
-		timeout: u64,
+#[cfg(feature = "pulseaudio")]
+#[derive(Debug, Clone, Parser)]
+pub struct PulseOptions {
+	/// PulseAudio server buffer size, in block number
+	#[arg(long, value_name = "N", default_value_t = 1)]
+	pub server_buffer: u32,
+}
 
-		/// just list available devices and quit
-		#[arg(long, default_value_t = false)]
-		list: bool,
-	},
+#[cfg(feature = "file")]
+#[derive(Debug, Clone, Parser)]
+pub struct FileOptions {
+	/// limit data flow to match requested sample rate
+	#[arg(short, long, default_value_t = false)]
+	pub limit_rate: bool,
+}
+
+#[cfg(feature = "cpal")]
+#[derive(Debug, Clone, Parser)]
+pub struct CpalOptions {
+	/// timeout (in seconds) waiting for audio stream
+	#[arg(long, default_value_t = 5)]
+	pub timeout: u64,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -123,6 +133,10 @@ pub struct SourceOptions {
 	/// tune buffer size to be in tune with given note (overrides buffer option)
 	#[arg(short, long, value_name = "NOTE")]
 	pub tune: Option<String>,
+
+	/// number of tape chunks to keep in memory (for smooth scrolling)
+	#[arg(long, default_value_t = 32)]
+	pub chunks: usize,
 }
 
 // TODO its convenient to keep this here but it's not really the best place...

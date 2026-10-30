@@ -1,7 +1,7 @@
 [package]
 name = "scope-tui"
 version = "0.3.5"
-edition = "2021"
+edition = "2024"
 authors = [ "alemi <me@alemi.dev>" ]
 description = "A simple oscilloscope/vectorscope/spectroscope for your terminal"
 license = "MIT"

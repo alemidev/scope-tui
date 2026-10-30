@@ -16,7 +16,7 @@ use crate::{
 		oscilloscope::Oscilloscope, spectroscope::Spectroscope, update_value_f, update_value_i,
 		vectorscope::Vectorscope, Dimension, DisplayMode, GraphConfig,
 	},
-	input::{DataSource, Matrix},
+	input::{Source, SampleTape},
 };
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -52,6 +52,7 @@ pub struct App {
 	vectorscope: Vectorscope,
 	spectroscope: Spectroscope,
 	mode: CurrentDisplayMode,
+	frame_time: Option<Duration>,
 }
 
 // TODO another way to build this that doesn't require getting cli args directly!!!
@@ -62,8 +63,9 @@ impl App {
 			labels_color: ui.labels_color,
 			palette: ui.palette_color.clone(),
 			scale: ui.scale as f64,
-			width: source.buffer, // TODO also make bit depth customizable
-			samples: source.buffer,
+			chunks: source.chunks as u32,
+			samples: source.buffer / source.channels as u32 / 2 * (source.chunks as u32 / 2),
+			initial_samples: source.buffer / source.channels as u32 / 2,
 			sampling_rate: source.sample_rate,
 			references: !ui.no_reference,
 			show_ui: !ui.no_ui,
@@ -87,27 +89,48 @@ impl App {
 			spectroscope,
 			mode: ui.mode,
 			channels: source.channels as u8,
+			frame_time: ui.framerate.map(|x| std::time::Duration::from_millis(1000 / x)),
 		}
 	}
 
 	pub fn run(
 		&mut self,
-		mut source: Box<dyn DataSource<f64>>,
+		mut source: Box<dyn Source>,
 		mut terminal: Terminal<CrosstermBackend<Stdout>>,
 	) -> Result<(), io::Error> {
 		let mut fps = 0;
 		let mut framerate = 0;
 		let mut last_poll = Instant::now();
-		let mut channels = Matrix::default();
+		let mut channels = SampleTape::default();
+		let mut last_frame = std::time::Instant::now();
+
+		let mut tape = crate::input::tape::Multi::new(self.graph.chunks as usize, self.channels as usize);
 
 		loop {
-			let data = source.recv().ok_or(io::Error::new(
+			while event::poll(Duration::from_millis(0))? {
+				// process all enqueued events
+				let event = event::read()?;
+
+				if self.process_events(event.clone())? {
+					return Ok(());
+				}
+				self.current_display_mut().handle(event);
+			}
+
+			let chunk = source.recv().ok_or(io::Error::new(
 				io::ErrorKind::BrokenPipe,
 				"data source returned null",
 			))?;
 
+			tape.write(chunk);
+
+			if let Some(frame_time) = self.frame_time && std::time::Instant::now() - last_frame < frame_time {
+				continue
+			}
+			last_frame = std::time::Instant::now();
+
 			if !self.graph.pause {
-				channels = data;
+				channels = tape.read();
 			}
 
 			fps += 1;
@@ -156,16 +179,6 @@ impl App {
 					f.render_widget(chart, size)
 				})?;
 			}
-
-			while event::poll(Duration::from_millis(0))? {
-				// process all enqueued events
-				let event = event::read()?;
-
-				if self.process_events(event.clone())? {
-					return Ok(());
-				}
-				self.current_display_mut().handle(event);
-			}
 		}
 	}
 
@@ -209,14 +222,14 @@ impl App {
 					true,
 					25,
 					magnitude,
-					0..self.graph.width * 2,
+					0..self.graph.chunks * self.graph.initial_samples * 2,
 				),
 				KeyCode::Left => update_value_i(
 					&mut self.graph.samples,
 					false,
 					25,
 					magnitude,
-					0..self.graph.width * 2,
+					0..self.graph.chunks * self.graph.initial_samples * 2,
 				),
 				KeyCode::Char('q') => quit = true,
 				KeyCode::Char(' ') => self.graph.pause = !self.graph.pause,
@@ -226,7 +239,7 @@ impl App {
 				KeyCode::Tab => self.mode = self.mode.switch(),
 				KeyCode::BackTab => self.mode = self.mode.switch_reverse(),
 				KeyCode::Esc => {
-					self.graph.samples = self.graph.width;
+					self.graph.samples = self.graph.chunks;
 					self.graph.scale = 1.;
 				}
 				_ => {}
@@ -255,7 +268,7 @@ fn make_header<'a>(
 			),
 			Cell::from(module_header),
 			Cell::from(format!("-{:.2}x+", cfg.scale)),
-			Cell::from(format!("{}/{} spf", cfg.samples, cfg.width)),
+			Cell::from(format!("{}/{} spf", cfg.samples, cfg.initial_samples * cfg.chunks)),
 			Cell::from(format!("{}fps", fps)),
 			Cell::from(if cfg.scatter { "***" } else { "---" }),
 			Cell::from(if pause { "||" } else { "|>" }),
