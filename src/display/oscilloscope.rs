@@ -5,7 +5,7 @@ use ratatui::{
 	widgets::{Axis, GraphType},
 };
 
-use crate::input::Matrix;
+use crate::input::SampleTape;
 
 use super::{update_value_f, update_value_i, DataSet, Dimension, DisplayMode, GraphConfig};
 
@@ -82,7 +82,7 @@ impl DisplayMode for Oscilloscope {
 		)]
 	}
 
-	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &SampleTape) -> Vec<DataSet> {
 		let mut out = Vec::new();
 
 		let mut trigger_offset = 0;

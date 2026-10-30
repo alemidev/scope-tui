@@ -7,7 +7,7 @@ use ratatui::{
 	widgets::{Axis, GraphType},
 };
 
-use crate::input::Matrix;
+use crate::input::SampleTape;
 
 use super::{update_value_i, DataSet, Dimension, DisplayMode, GraphConfig};
 
@@ -99,7 +99,7 @@ impl DisplayMode for Spectroscope {
 				"frequency -",
 				[
 					20.0f64.ln(),
-					((cfg.samples as f64 / cfg.width as f64) * 20000.0).ln(),
+					((cfg.samples as f64 / cfg.chunks as f64) * 20000.0).ln(),
 				],
 			),
 			Dimension::Y => (
@@ -116,7 +116,7 @@ impl DisplayMode for Spectroscope {
 		a.style(Style::default().fg(cfg.axis_color)).bounds(bounds)
 	}
 
-	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &SampleTape) -> Vec<DataSet> {
 		if self.average == 0 {
 			self.average = 1
 		} // otherwise fft breaks

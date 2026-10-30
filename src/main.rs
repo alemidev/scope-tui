@@ -2,80 +2,71 @@ use clap::Parser;
 use scope::app::App;
 use scope::cfg::{ScopeArgs, ScopeSource};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
 	let mut args = ScopeArgs::parse();
 	args.opts.tune();
 
-	let source = match args.source {
-		#[cfg(feature = "pulseaudio")]
-		ScopeSource::Pulse {
-			device,
-			server_buffer,
-		} => scope::input::pulse::PulseAudioSimpleDataSource::new(
-			device.as_deref(),
-			&args.opts,
-			server_buffer,
-		)?,
-
-		#[cfg(feature = "file")]
-		ScopeSource::File { path, limit_rate } => {
-			scope::input::file::FileSource::new(&path, &args.opts, limit_rate)?
-		}
-
-		#[cfg(feature = "cpal")]
-		ScopeSource::Audio {
-			device,
-			timeout,
-			list,
-		} => {
-			if list {
-				use cpal::traits::{DeviceTrait, HostTrait};
-				let host = cpal::default_host();
-				for dev in host.input_devices().unwrap() {
-					println!("> {}", dev.description().map(|d| d.name().to_string()).unwrap_or("[N/A]".to_string()));
-					for config in dev.supported_input_configs().unwrap() {
-						let bufsize = match config.buffer_size() {
-							cpal::SupportedBufferSize::Range { min, max } => (*min, *max),
-							cpal::SupportedBufferSize::Unknown => (0, 0),
-						};
-						println!(
-							"  + {}ch {}-{}hz {}-{}buf ({})",
-							config.channels(),
-							config.min_sample_rate(),
-							config.max_sample_rate(),
-							bufsize.0,
-							bufsize.1,
-							config.sample_format()
-						);
-					}
-				}
-				return Ok(());
-			}
-			scope::input::cpal::DefaultAudioDeviceWithCPAL::instantiate(
-				device.as_deref(),
-				&args.opts,
-				timeout,
-			)?
-		}
-	};
-
-	let mut app = App::new(&args.ui, &args.opts);
-
-	// set panic hook to restore the terminal
+	// set panic hook to restore the terminal in case of sudden interruptions
 	let hook = std::panic::take_hook();
 	std::panic::set_hook(Box::new(move |panic_info| {
 		ratatui::restore();
 		hook(panic_info);
 	}));
 
+	if args.ui.picker {
+		let devices = match device_list(&args) {
+			Ok(d) => d,
+			Err(e) => {
+				eprintln!("[!] error listing devices: {e} - {e:?}");
+				return;
+			}
+		};
+		let mut picker = scope::picker::Picker::new(devices);
+
+		let term = ratatui::init();
+		args.device = Some(picker.run(term));
+		ratatui::restore();
+	}
+
+	let mut app = App::new(&args.ui, &args.opts);
+
+	let source = match source(args) {
+		Ok(s) => s,
+		Err(e) => {
+			eprintln!("[!] error creating source: {e} - {e:?}");
+			return;
+		}
+	};
+
 	let term = ratatui::init();
 	let res = app.run(source, term);
-
 	ratatui::restore();
 
 	if let Err(e) = res {
 		eprintln!("[!] Error executing app: {:?}", e);
 	}
+}
 
-	Ok(())
+fn device_list(args: &ScopeArgs) -> Result<Vec<String>, scope::input::HostError> {
+	use scope::input::Host;
+	Ok(match args.source {
+		#[cfg(feature = "pulseaudio")]
+		ScopeSource::Pulse(ref _opts) => scope::input::pulse::PulseHost.list()?,
+		#[cfg(feature = "file")]
+		ScopeSource::File(ref _opts) => scope::input::file::FileHost.list()?,
+		#[cfg(feature = "cpal")]
+		ScopeSource::Audio(ref _opts) => scope::input::audio::CpalHost::default().list()?,
+	})
+}
+
+fn source(args: ScopeArgs) -> Result<Box<dyn scope::input::Source>, scope::input::HostError> {
+	use scope::input::Host;
+	Ok(match args.source {
+		#[cfg(feature = "pulseaudio")]
+		ScopeSource::Pulse(opts) => Box::new(scope::input::pulse::PulseHost.source(args.device, opts, args.opts)?),
+		#[cfg(feature = "file")]
+		ScopeSource::File(opts) => Box::new(scope::input::file::FileHost.source(args.device, opts, args.opts)?),
+		#[cfg(feature = "cpal")]
+		ScopeSource::Audio(opts) => Box::new(scope::input::audio::CpalHost::default().source(args.device, opts, args.opts)?),
+	})
 }

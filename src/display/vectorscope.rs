@@ -4,7 +4,7 @@ use ratatui::{
 	widgets::{Axis, GraphType},
 };
 
-use crate::input::Matrix;
+use crate::input::SampleTape;
 
 use super::{DataSet, Dimension, DisplayMode, GraphConfig};
 
@@ -56,7 +56,7 @@ impl DisplayMode for Vectorscope {
 		]
 	}
 
-	fn process(&mut self, cfg: &GraphConfig, data: &Matrix<f64>) -> Vec<DataSet> {
+	fn process(&mut self, cfg: &GraphConfig, data: &SampleTape) -> Vec<DataSet> {
 		let mut out = Vec::new();
 
 		for (n, chunk) in data.chunks(2).enumerate() {

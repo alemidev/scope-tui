@@ -7,3 +7,6 @@ pub mod cfg;
 
 #[cfg(feature = "app")]
 pub mod app;
+
+#[cfg(feature = "app")]
+pub mod picker;
