@@ -27,8 +27,11 @@ pub trait Host {
 	/// required config to build a new source
 	type Cfg;
 
+	/// the titles to put in table header for these sources
+	fn header() -> Vec<String>;
+
 	/// lists available devices (sources)
-	fn list(&self) -> Result<Vec<String>, Self::Err>;
+	fn list(&self) -> Result<Vec<Vec<String>>, Self::Err>;
 
 	/// initialize a new audio source
 	fn source(&self, dev: Option<String>, cfg: Self::Cfg, opts: crate::cfg::SourceOptions) -> Result<Self::Src, Self::Err>;

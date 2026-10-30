@@ -14,18 +14,22 @@ fn main() {
 	}));
 
 	if args.ui.picker {
-		let devices = match device_list(&args) {
+		let (header, devices) = match device_list(&args) {
 			Ok(d) => d,
 			Err(e) => {
 				eprintln!("[!] error listing devices: {e} - {e:?}");
 				return;
 			}
 		};
-		let mut picker = scope::picker::Picker::new(devices);
+		let mut picker = scope::picker::Picker::new(header, devices);
 
 		let term = ratatui::init();
-		args.device = Some(picker.run(term));
+		args.device = picker.run(term);
 		ratatui::restore();
+
+		if args.device.is_none() {
+			return;
+		}
 	}
 
 	let mut app = App::new(&args.ui, &args.opts);
@@ -47,15 +51,15 @@ fn main() {
 	}
 }
 
-fn device_list(args: &ScopeArgs) -> Result<Vec<String>, scope::input::HostError> {
+fn device_list(args: &ScopeArgs) -> Result<(Vec<String>, Vec<Vec<String>>), scope::input::HostError> {
 	use scope::input::Host;
 	Ok(match args.source {
 		#[cfg(feature = "pulseaudio")]
-		ScopeSource::Pulse(ref _opts) => scope::input::pulse::PulseHost.list()?,
+		ScopeSource::Pulse(ref _opts) => (scope::input::pulse::PulseHost::header(), scope::input::pulse::PulseHost.list()?),
 		#[cfg(feature = "file")]
-		ScopeSource::File(ref _opts) => scope::input::file::FileHost.list()?,
+		ScopeSource::File(ref _opts) => (scope::input::file::FileHost::header(), scope::input::file::FileHost.list()?),
 		#[cfg(feature = "cpal")]
-		ScopeSource::Audio(ref _opts) => scope::input::audio::CpalHost::default().list()?,
+		ScopeSource::Audio(ref _opts) => (scope::input::audio::CpalHost::header(), scope::input::audio::CpalHost::default().list()?),
 	})
 }
 

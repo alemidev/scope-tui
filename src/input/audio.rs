@@ -1,4 +1,4 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{SampleFormat, SupportedBufferSize, traits::{DeviceTrait, HostTrait, StreamTrait}};
 use std::sync::mpsc;
 
 use super::{stream_to_matrix, SampleTape};
@@ -32,11 +32,46 @@ impl super::Host for CpalHost {
 	type Src = CpalSource;
 	type Cfg = crate::cfg::CpalOptions;
 
-	fn list(&self) -> Result<Vec<String>, cpal::Error> {
+	fn header() -> Vec<String> {
+		vec![
+			"NAME".to_string(),
+			"CHANNELS".to_string(),
+			"BUFFER".to_string(),
+			"DIRECTION".to_string(),
+			"DRIVER".to_string(),
+			"FORMATS".to_string(),
+		]
+	}
+
+	fn list(&self) -> Result<Vec<Vec<String>>, cpal::Error> {
 		Ok(
 			self.host.input_devices()?
-				.filter_map(|d| d.description().ok())
-				.map(|d| d.name().to_string())
+				.filter_map(|d| Some((d.description().ok()?, d.supported_input_configs().ok()?)))
+				.map(|(d, cfgs)| {
+					let mut formats = Vec::new();
+					let mut channels = MinMax::new();
+					let mut bufsizes = MinMax::new();
+					for cfg in cfgs {
+						if matches!(cfg.sample_format(), SampleFormat::F32 | SampleFormat::F64 | SampleFormat::I16) {
+							formats.push(cfg.sample_format().to_string());
+						}
+						channels.push(cfg.channels() as usize);
+						if let SupportedBufferSize::Range { min, max } = cfg.buffer_size() {
+							bufsizes.push_min(*min as usize);
+							bufsizes.push_max(*max as usize);
+						}
+					}
+
+					vec![
+						d.name().to_string(),
+						format!("{}..={}", channels.min, channels.max),
+						format!("{}..={}", bufsizes.min, bufsizes.max),
+						d.direction().to_string(),
+						d.driver().unwrap_or_default().to_string(),
+						formats.join(","),
+						
+					]
+				})
 				.collect()
 		)
 	}
@@ -86,3 +121,29 @@ impl super::Host for CpalHost {
 	}
 }
 
+struct MinMax {
+	min: usize,
+	max: usize,
+}
+
+impl MinMax {
+	fn new() -> Self {
+		Self { min: usize::MAX, max: usize::MIN }
+	}
+
+	fn push_min(&mut self, v: usize) {
+		if v < self.min {
+			self.min = v;
+		}
+	}
+	fn push_max(&mut self, v: usize) {
+		if v > self.max {
+			self.max = v;
+		}
+	}
+
+	fn push(&mut self, v: usize) {
+		self.push_min(v);
+		self.push_max(v);
+	}
+}

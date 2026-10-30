@@ -239,7 +239,7 @@ impl App {
 				KeyCode::Tab => self.mode = self.mode.switch(),
 				KeyCode::BackTab => self.mode = self.mode.switch_reverse(),
 				KeyCode::Esc => {
-					self.graph.samples = self.graph.chunks;
+					self.graph.samples = self.graph.chunks * self.graph.initial_samples;
 					self.graph.scale = 1.;
 				}
 				_ => {}

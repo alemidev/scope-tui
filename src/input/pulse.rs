@@ -1,8 +1,5 @@
 use libpulse_binding::{
-	def::BufferAttr,
-	error::PAErr,
-	sample::{Format, Spec},
-	stream::Direction,
+	def::BufferAttr, error::{Code, PAErr}, sample::{Format, Spec}, stream::Direction,
 };
 use libpulse_simple_binding::Simple;
 
@@ -41,9 +38,12 @@ impl super::Host for PulseHost {
 	type Src = PulseSource;
 	type Cfg = crate::cfg::PulseOptions;
 
-	fn list(&self) -> Result<Vec<String>, Self::Err> {
-		// TODO!
-		Ok(Vec::new())
+	fn header() -> Vec<String> {
+		vec![]
+	}
+
+	fn list(&self) -> Result<Vec<Vec<String>>, Self::Err> {
+		Err(PAErr(Code::Invalid as i32))
 	}
 
 	fn source(&self, dev: Option<String>, opts: Self::Cfg, source: crate::cfg::SourceOptions) -> Result<Self::Src, Self::Err> {

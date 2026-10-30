@@ -67,11 +67,15 @@ impl super::Host for FileHost {
 	type Src = FileSource;
 	type Cfg = crate::cfg::FileOptions;
 
-	fn list(&self) -> Result<Vec<String>, Self::Err> {
+	fn header() -> Vec<String> {
+		vec!["TITLE".to_string()]
+	}
+
+	fn list(&self) -> Result<Vec<Vec<String>>, Self::Err> {
 		Ok(
 			std::fs::read_dir(std::env::current_dir()?)?
 				.filter_map(|d| d.ok())
-				.map(|d| d.path().to_string_lossy().to_string())
+				.map(|d| vec![d.path().to_string_lossy().to_string()])
 				.collect()
 		)
 	}
