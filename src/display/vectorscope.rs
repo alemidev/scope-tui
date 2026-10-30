@@ -1,3 +1,4 @@
+use crossterm::event::{Event, KeyCode};
 use ratatui::{
 	style::Style,
 	text::Span,
@@ -9,7 +10,9 @@ use crate::input::SampleTape;
 use super::{DataSet, Dimension, DisplayMode, GraphConfig};
 
 #[derive(Default)]
-pub struct Vectorscope {}
+pub struct Vectorscope {
+	pub goniometer: bool,
+}
 
 impl DisplayMode for Vectorscope {
 	fn mode_str(&self) -> &'static str {
@@ -25,9 +28,16 @@ impl DisplayMode for Vectorscope {
 	}
 
 	fn axis(&'_ self, cfg: &GraphConfig, dimension: Dimension) -> Axis<'_> {
-		let (name, bounds) = match dimension {
-			Dimension::X => ("left -", [-cfg.scale, cfg.scale]),
-			Dimension::Y => ("| right", [-cfg.scale, cfg.scale]),
+		let (name, bounds) = if self.goniometer {
+			match dimension {
+				Dimension::X => ("mid -", [-cfg.scale, cfg.scale]),
+				Dimension::Y => ("| side", [-cfg.scale, cfg.scale]),
+			}
+		} else {
+			match dimension {
+				Dimension::X => ("left -", [-cfg.scale, cfg.scale]),
+				Dimension::Y => ("| right", [-cfg.scale, cfg.scale]),
+			}
 		};
 		let mut a = Axis::default();
 		if cfg.show_ui {
@@ -67,7 +77,11 @@ impl DisplayMode for Vectorscope {
 						if i > cfg.samples as usize {
 							break;
 						}
-						tmp.push((chunk[0][i], chunk[1][i]));
+						if self.goniometer {
+							tmp.push((mid(chunk[0][i], chunk[1][i]), side(chunk[0][i], chunk[1][i])));
+						} else {
+							tmp.push((chunk[0][i], chunk[1][i]));
+						}
 					}
 				}
 				1 => {
@@ -75,7 +89,7 @@ impl DisplayMode for Vectorscope {
 						if i > cfg.samples as usize {
 							break;
 						}
-						tmp.push((chunk[0][i], i as f64));
+						tmp.push((chunk[0][i], chunk[0][i]));
 					}
 				}
 				_ => continue,
@@ -109,4 +123,27 @@ impl DisplayMode for Vectorscope {
 
 		out
 	}
+
+	fn handle(&mut self, event: Event) {
+		if let Event::Key(key) = event {
+			match key.code {
+				KeyCode::Char('g') => self.goniometer = !self.goniometer,
+				_ => {}
+			}
+		}
+	}
+}
+
+fn mid(a: f64, b: f64) -> f64 {
+	if a > 0. && b > 0. {
+		a.min(b)
+	} else if a < 0. && b < 0. {
+		a.max(b)
+	} else {
+		0.
+	}
+}
+
+fn side(a: f64, b: f64) -> f64 {
+	a - b
 }
